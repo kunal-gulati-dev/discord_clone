@@ -264,6 +264,41 @@ export const initialProfile = async () => {
 
 21. Now lets call above function in the (setup) page.tsx file.
 22. In the page tsx file we will call the function initialProfile and if the we found the profile, we will find the server related to that user and if there is a server we will redirect the user to that server page, otherwise we will call the user to create a server.
+```
+import { initialProfile } from "@/lib/initial-profile";
+import { db } from "@/lib/db";
+import { redirect } from "next/navigation";
+
+
+const SetupPage = async () => {
+
+    const profile = await initialProfile();
+
+    const server = await db.server.findFirst({
+        where: {
+            members: {
+                some: {
+                    profileId: profile.id
+                }
+            }
+        }
+    })
+
+    if (server) {
+        return redirect(`/servers/${server.id}`)
+    }
+
+
+
+    return (
+        <div>
+            Create a server
+        </div>
+    );
+}
+ 
+export default SetupPage;
+```
 23. To take the full experience we need to write the command in the second terminal 
 ```
 npx prisma studio
