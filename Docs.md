@@ -1050,12 +1050,10 @@ export const NavigationItem = ({
 
 ```
 ## Create Server Modal. 
-
-
-
-
-
-
-
+1. add this class to mode-toggle component in the button tag
+```
+<Button className="bg-transparent border-0" variant="outline" size="icon">
+```
+2. 
 
 
