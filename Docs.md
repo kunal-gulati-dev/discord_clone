@@ -852,7 +852,207 @@ export const NavigationAction = () => {
 ```
 
 11. Now we have to add the tooltip.So, create a file named action-tooltip.tsx in components folder.
-12. 
+12. The initial code for the tooltip is mentioned below and include it into navigation-action.tsx file.
+```
+"use client";
+
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger
+} from "@/components/ui/tooltip";
+
+interface ActionTooltipProps {
+    label: string;
+    children: React.ReactNode;
+    side?: "top" | "right" | "bottom" | "left";
+    align: "start" | "center" | "end";
+}
+
+
+export const ActionTooltip = ({
+    label,
+    children,
+    side,
+    align
+}: ActionTooltipProps) => {
+    return (
+        <TooltipProvider>
+            <Tooltip delayDuration={50}>
+                <TooltipTrigger asChild>
+                    {children}
+                </TooltipTrigger>
+                <TooltipContent side={side} align={align}>
+                    <p className="font-semibold text-sm capitalize">
+                        {label.toLowerCase()}
+                    </p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    )
+}
+
+```
+
+13. Wrap the navigation action inside <ActionTooltip></ActionTooltip> like mentioned below 
+```
+<ActionTooltip 
+    side="right"
+    align="center"
+    label="Add a server"
+>
+    <button className="group flex items-center">
+        <div className="flex mx-3 h-[48px] w-[48px] rounded-[24px] group-hover:rounded-[16px] transition-all overflow-hidden items-center justify-center bg-background dark:bg-neutral-700 group-hover:bg-emerald-500">
+            <Plus
+                className="group-hover:text-white transition text-emerald-500"
+                size={25}
+            />
+        </div>
+    </button>
+</ActionTooltip>
+```
+
+14. Right now we are done with this button in future it will trigger a modal to open and create a new server. till then lets work on showing the server we have.
+15. So add Separator in navigation-sidebar.tsx file.
+```
+<Separator
+    className="h-[2px] bg-zinc-300 dark:bg-zinc-700 rounded-md w-10 mx-auto"
+/>
+```
+
+16. Now we have to add a new component from shadcn ui and it is scroll area.
+17. npx shadcn-ui@latest add scroll-area
+18. add this scroll area in navigation-sidebar.tsx and create a components named navigation-item.tsx which will include in scrollarea.
+
+19. navigation-sidebar updated code
+```
+<ScrollArea className="flex-1 w-full">
+    {servers.map((server) => {
+        return (
+            <div key={server.id} className="mb-4">
+                <NavigationItem
+                    id={server.id}
+                    name={server.name}
+                    imageUrl={server.imageUrl}
+                />
+            </div>
+        )
+    })}
+</ScrollArea>
+```
+
+20. navigation-item initial code.
+
+```
+"use client";
+
+import Image from "next/image";
+import { useParams, useRouter } from "next/navigation";
+
+import { cn } from "@/lib/utils";
+import { ActionTooltip } from "@/components/action-tooltip";
+
+
+interface NavigationItemProps {
+    id: string;
+    imageUrl: string;
+    name: string;
+}
+
+export const NavigationItem = ({
+    id,
+    imageUrl,
+    name
+}: NavigationItemProps) => {
+    return (
+        <div>
+            server
+        </div>
+    )
+}
+```
+
+21. This is the final code after displaying the data of server on the left side of navigation-item.tsx file.
+```
+"use client";
+
+import Image from "next/image";
+import { useParams, useRouter } from "next/navigation";
+
+import { cn } from "@/lib/utils";
+import { ActionTooltip } from "@/components/action-tooltip";
+
+
+interface NavigationItemProps {
+    id: string;
+    imageUrl: string;
+    name: string;
+}
+
+export const NavigationItem = ({
+    id,
+    imageUrl,
+    name
+}: NavigationItemProps) => {
+    const params = useParams();
+
+    const router = useRouter();
+
+    const onClick = () => {
+        router.push(`/servers/${id}`)
+    }
+
+    return (
+        <ActionTooltip
+            side="right"
+            align="center"
+            label={name}
+        >
+            <button
+                onClick={onClick}
+                className="group relative flex items-center"
+            >
+                <div className={cn(
+                    "absolute left-0 bg-primary rounded-r-full transition-all w-[4px]",
+                    params?.serverId !== id && "group-hover:h-[20px]",
+                    params?.serverId === id ? "h-[36px]" : "h-8px"
+                )} />
+                <div className={cn(
+                    "relative group flex mx-3 h-[48px] w-[48px] rounded-[24px] group-hover:rounded-[16px] transition-all overflow-hidden",
+                    params?.serverId === id && "bg-primary/10 text-primary rounded-[16px]"
+                )}>
+                    <Image
+                        fill
+                        src={imageUrl}
+                        alt="channel"
+                    />
+                </div>
+            </button>
+        </ActionTooltip>
+    )
+}
+```
+
+22. Add mode toggle and userButton component to navigation-sidebar.tsx file.
+```
+<div className="pb-3 mt-auto flex items-center flex-col gap-y-4">
+    <ModeToggle />
+    <UserButton
+        afterSignOutUrl="/"                
+        appearance={{
+            elements: {
+                avatarBox: "h-[48px] w-[48px]"
+            }
+        }}
+    />
+</div>
+
+```
+## Create Server Modal. 
+
+
+
 
 
 
