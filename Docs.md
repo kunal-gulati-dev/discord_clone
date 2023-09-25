@@ -825,7 +825,34 @@ export const NavigationSidebar = async () => {
 6. So we need to install a package from shadcn.
 7. npx shadcn-ui@latest add tooltip
 8. npx shadcn-ui@latest add separator
-9. 
+9. We need to create an NavigationAction Component, So create component named navigation-action.tsx and include this component in navigation-sidebar component.
+10. this is the initial code till now for navigation-action.tsx file.
+
+```
+"use client";
+
+import { Plus } from "lucide-react";
+
+export const NavigationAction = () => {
+    return (
+        <div>
+            <button
+                className="group flex items-center"
+            >
+                <div className="flex mx-3 h-[48px] w-[48px] rounded-[24px] group-hover:rounded-[16px] transition-all overflow-hidden items-center justify-center bg-background dark:bg-neutral-700 group-hover:bg-emerald-500">
+                    <Plus
+                        className="group-hover:text-white transition text-emerald-500"
+                        size={25}
+                    />
+                </div>
+            </button>
+        </div>
+    )
+}
+```
+
+11. Now we have to add the tooltip.So, create a file named action-tooltip.tsx in components folder.
+12. 
 
 
 
