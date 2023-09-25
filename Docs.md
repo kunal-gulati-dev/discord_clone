@@ -308,4 +308,527 @@ it will open a dashboard where i can see all the db tables and details.
 
 ## Initial Modal UI
 
-1.  Now we have to create a modal for the ui.
+1. Now we have to create a modal for the ui.
+2. To create a modal we need dialogue box component from shadcn ui.
+3. npx shadcn-ui@latest add dialog
+4. We will need an input component.
+5. npx shadcn-ui@latest add input
+6. We will be needing react hook form and zod for validations.
+7. npx shadcn-ui@latest add form
+8. So Create a folder inside components directory named modals and create file named initial-modal.tsx and import it into (setup)/page.tsx.
+9. The final code for initial-modal.tsx is mentioned below.
+
+```
+"use client"
+
+import * as z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+
+import {
+	Dialog,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogContent,
+} from "@/components/ui/dialog";
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+const formSchema = z.object({
+    name: z.string().min(1, {
+        message: "Server name is required."
+    }),
+    imageUrl: z.string().min(1, {
+        message: "Server image is required."
+    })
+})
+
+
+export const InitialModal = () => {
+
+    const form = useForm({
+        resolver: zodResolver(formSchema),
+        defaultValues: {
+            name: "",
+            imageUrl: "",
+        }
+    });
+
+    const isLoading = form.formState.isSubmitting;
+
+    const onSubmit = async (values: z.infer<typeof formSchema>) => {
+        console.log(values)
+    }
+
+
+    return (
+        <Dialog open={true}>
+            <DialogContent className="bg-white text-black p-0 overflow-hidden">
+                <DialogHeader className="pt-8 px-6">
+                    <DialogTitle className="text-2xl text-center font-bold">
+                        Customize your server
+                    </DialogTitle>
+                    <DialogDescription className="text-center text-zinc-500">
+                        Give your server a personality with a name and an image. You can always change it later.
+                    </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                        <div className="space-y-8 px-6">
+
+                            <div className="flex items-center justify-center text-center">
+                                TODO: Image Upload
+                            </div>
+
+                            <FormField
+                                control={form.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel
+                                            className="uppercase text-xs font-bold text-zinc-500 dark:text-secondary/70"
+                                        >
+                                            Server name
+                                        </FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                disabled={isLoading}
+                                                className="bg-zinc-300/50 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0"
+                                                placeholder="Enter server name"
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                        <DialogFooter className="bg-gray-100 px-6 py-4">
+                            <Button variant="primary" disabled={isLoading}>
+                                Create
+                            </Button>
+                        </DialogFooter>
+
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+```
+10. After this we need to add a variation to the button, So go to components/ui/button.tsx and add a variant.
+11. add this variation in the button.tsx file.
+```
+primary: "bg-indigo-500 text-white hover:bg-indigo-500/90"
+```
+12. After implimenting we will be getting a hydration error, So lets fix it. Why this error is occuring, because of the modal and modals are notorious in nature and causes error.
+13. So we have to apply mount technique and add a state, useEffect to see if the component is mounted or not.
+```
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+      setIsMounted(true);
+  }, [])
+
+  if (!isMounted) {
+        return null
+    }  
+```
+
+## Setup the Uploadthing
+1. lets visit uploadthing website.
+2. login and create an app named discord_clone.
+3. Copy the api keys and save it into your dot env file.
+4. install the packages.
+5. npm install uploadthing @uploadthing/react react-dropzone
+6. To setup create a file in the following directory app/api/uploadthing/core.ts.
+7. Now modify the code according to our needs.
+8. final code for core.ts file is mentioned below.
+```
+import { auth } from "@clerk/nextjs"
+import { createUploadthing, type FileRouter } from "uploadthing/next";
+
+const f = createUploadthing();
+
+const handleAuth = () => {
+    const { userId } = auth();
+    if (!userId) throw new Error("Unauthorized")
+    return { userId: userId };
+}
+
+// const auth = (req: Request) => ({ id: "fakeId" }); // Fake auth function
+
+// FileRouter for your app, can contain multiple FileRoutes
+export const ourFileRouter = {
+	serverImage: f({ image: { maxFileSize: "4MB", maxFileCount: 1 } })
+        .middleware(() => handleAuth())
+        .onUploadComplete(() => {}),
+    messageFile: f(["image", "pdf"])
+        .middleware(() => handleAuth())
+        .onUploadComplete(() => {})
+} satisfies FileRouter;
+
+export type OurFileRouter = typeof ourFileRouter;
+
+```
+9. create a route.ts file as mentioned in the docs
+```
+import { createNextRouteHandler } from "uploadthing/next";
+
+import { ourFileRouter } from "./core";
+
+// Export routes for Next App Router
+export const { GET, POST } = createNextRouteHandler({
+	router: ourFileRouter,
+});
+
+```
+10. create a uploadthing.ts file in lib folder.
+```
+
+import { generateComponents } from "@uploadthing/react";
+
+import type { OurFileRouter } from "@/app/api/uploadthing/core";
+
+export const { UploadButton, UploadDropzone, Uploader } =
+	generateComponents<OurFileRouter>();
+```
+11. So, uploadthing is auth protected form uploading but we still need to add it in the authmiddleware. So, Open the middlewre.ts file and add public routes to avoid potential errors.
+```
+export default authMiddleware({
+	publicRoutes: ["/api/upladthing"]
+});
+```
+
+12. Now lets modify initial-modal.tsx file for uploadthing.
+13. Create a component named file-upload.tsx in components folder.
+14. add this code in initial-modal-.tsx file in the TODO.
+
+```
+<FormField
+    control={form.control}
+    name="imageUrl"
+    render={({field}) => (
+      <FormItem>
+        <FormControl>
+          <FileUpload
+            endpoint="serverImage"
+            value={field.value}
+            onChange={field.onChange}
+          />
+        </FormControl>
+      </FormItem>
+    )}
+  />
+```
+
+15. So add the following code in the file-upload.tsx file.
+```
+"use client";
+
+import { X } from "lucide-react";
+import Image from "next/image";
+import { UploadDropzone } from "@/lib/uploadthing";
+import "@uploadthing/react/styles.css"
+
+
+
+interface FileUploadProps {
+    onChange: (url?: string) => void;
+    value: string;
+    endpoint: "messageFile" | "serverImage"
+}
+
+
+export const FileUpload = ({
+    onChange,
+    value,
+    endpoint
+}: FileUploadProps) => {
+
+    const fileType = value?.split(".").pop();
+    if (value && fileType !== "pdf") {
+        return (
+            <div className="relative h-20 w-20">
+                <Image
+                    fill
+                    src={value}
+                    alt="Upload"
+                    className="rounded-full"
+                />
+            </div>
+        )
+    }
+
+    return (
+        <UploadDropzone
+            endpoint={endpoint}
+            onClientUploadComplete={(res) => {
+                onChange(res?.[0].url)
+            }}
+            onUploadError={(error: Error) => {
+                console.log(error)
+            }}
+        />
+    )
+}
+```
+
+16. After implimenting this code we will be getting an error related to next.config.ts file to include image in it.
+17. So to resolve this error we need to include this code in the next.config.js file.
+```
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+    images: {
+        domains: [
+            "uploadthing.com",
+            "utfs.io"
+        ]
+    }
+}
+
+module.exports = nextConfig
+```
+18. After this we need to add a remove button to remove image from the component.
+19. The final code for file-upload.tsx file is mentioned below.
+
+```
+"use client";
+
+import { X } from "lucide-react";
+import Image from "next/image";
+import { UploadDropzone } from "@/lib/uploadthing";
+import "@uploadthing/react/styles.css"
+
+
+
+interface FileUploadProps {
+    onChange: (url?: string) => void;
+    value: string;
+    endpoint: "messageFile" | "serverImage"
+}
+
+
+export const FileUpload = ({
+    onChange,
+    value,
+    endpoint
+}: FileUploadProps) => {
+
+    const fileType = value?.split(".").pop();
+    if (value && fileType !== "pdf") {
+        return (
+            <div className="relative h-20 w-20">
+                <Image
+                    fill
+                    src={value}
+                    alt="Upload"
+                    className="rounded-full"
+                />
+                <button
+                    onClick={() => onChange("")}
+                    className="bg-rose-500 text-white p-1 rounded-full absolute top-0 right-0 shadow-sm"
+                    type="button"
+                >
+                    <X className="h-4 w-4" />
+                </button>
+            </div>
+        )
+    }
+
+    return (
+        <UploadDropzone
+            endpoint={endpoint}
+            onClientUploadComplete={(res) => {
+                onChange(res?.[0].url)
+            }}
+            onUploadError={(error: Error) => {
+                console.log(error)
+            }}
+        />
+    )
+}
+
+```
+20. Next Step is to send the data to backend and create a server for the user.
+
+
+## Server Creation api.
+
+1. We need to make changes in intial-modal.tsx file to call the api.
+2. lets install some packages.
+3. npm install axios.
+4. change the onSubmit function code to this and also we need to use the router provided by next js.
+```
+import { useRouter } from "next/navigation";
+const router = useRouter()
+const onSubmit = async (values: z.infer<typeof formSchema>) => {
+		try {
+			await axios.post("/api/servers", values)
+
+			form.reset();
+			router.refresh();
+			window.location.reload();
+
+		} catch (error) {
+			console.log(error)
+		}
+	};
+
+```
+5. Now lets create the api calls for the server, So create server folder inside api folder and create a route.ts file in it.
+6. But before that lets create a util which we will be using accross all our routes and server components to check current profile, So create a new file in lib folder named current-profile.ts.
+7. add this code in current-profile.tsx file.
+
+```
+import { auth } from "@clerk/nextjs";
+
+import { db } from "@/lib/db";
+
+export const currentProfile = async () => {
+    const { userId } = auth();
+    if (!userId) {
+        return null
+    }
+
+    const profile = await db.profile.findUnique({
+        where: {
+            userId
+        }
+    })
+
+    return profile
+}
+```
+
+8. Now lets work in route.ts file.
+9. install a package named npm install uuid 
+10. npm install -D @types/uuid
+11. The final code for route.ts file for creating the server is mentioned below 
+```
+import {v4 as uuidv4} from "uuid";
+import { NextResponse } from "next/server";
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { MemberRole } from "@prisma/client";
+
+
+export async function POST(req: Request) {
+    try {
+        const { name, imageUrl } = await req.json();
+        const profile = await currentProfile();
+
+        if (!profile) {
+            return new NextResponse("Unauthorized", {status: 401})
+        }
+
+        const server = await db.server.create({
+            data: {
+                profileId: profile.id,
+                name,
+                imageUrl,
+                inviteCode: uuidv4(),
+                channels: {
+                    create: [
+                        {name: "general", profileId: profile.id}
+                    ]
+                },
+                members: {
+                    create: [
+                        {profileId: profile.id, role: MemberRole.ADMIN}
+                    ]
+                }
+            }
+        })
+
+        return NextResponse.json(server)
+
+        
+    } catch (error) {
+        console.log("[SERVERS_POST]", error)
+        return new NextResponse("Internal Error", {status: 500})
+    }
+}
+```
+12. After successfully testing the creation of server we will be going to a 404 page, because right now there is no server page in the application, So now we need to create a view which will render the server page.
+
+## Navigation Sidebar
+
+1. After creating the page inside (main)/(routes)/servers/[serverId] route we will have no longer the error of 404.
+2. create a layout.tsx file in (main) folder and here is the initial code for it.
+```
+const MainLayout = async ({
+    children
+}: {
+    children: React.ReactNode
+}) => {
+    return (
+        <div className="h-full">
+            <div className="hidden md:flex h-full w-[72px] z-30 flex-col fixed inset-y-0">
+                <NavigationSidebar />
+            </div>
+            <main className="md:pl-[72px] h-full">
+                {children}
+            </main>
+        </div>
+    )
+}
+
+export default MainLayout;
+
+``` 
+3. We have to include a component named NavigationSidebar, create a folder named navigation in components and create the file named navigation-sidebar.tsx.
+4. So this is the initial structure for navigation-sidebar.tsx file.
+```
+import { redirect } from "next/navigation";
+
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+
+export const NavigationSidebar = async () => {
+
+    const profile = await currentProfile();
+    if (!profile) {
+        return redirect("/")
+    }
+
+    const servers = await db.server.findMany({
+        where: {
+            members: {
+                some: {
+                    profileId: profile.id
+                }
+            }
+        }
+    });
+
+
+
+    return (
+        <div className="space-y-4 flex flex-col items-center h-full text-primary w-full dark:bg-[#1E1F22] py-3">
+            navigation sidebar
+        </div>
+    )
+}
+```
+5. Now we need to create a navigation action component.
+6. So we need to install a package from shadcn.
+7. npx shadcn-ui@latest add tooltip
+8. npx shadcn-ui@latest add separator
+9. 
+
+
+
+
+
+
