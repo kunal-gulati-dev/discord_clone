@@ -1313,4 +1313,53 @@ module.exports = withUt({
 
 1. So, now we have to create a sidebar in the server page where we can show all the channels related to that particular server.
 2. Create the layout.tsx file inside [serverId] folder.
-3. 
+3. The below mentioned code is the basic layout of the page.
+```
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { redirectToSignIn } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
+
+
+const ServerIdLayout = async ({
+    children,
+    params
+}: {
+    children: React.ReactNode,
+    params: {serverId: string};
+}) => {
+    const profile = await currentProfile();
+
+    if (!profile) {
+        return redirectToSignIn();
+    }
+
+    const server = await db.server.findUnique({
+        where: {
+            id: params.serverId,
+            members: {
+                some: {
+                    profileId: profile.id
+                }
+            }
+        }
+    })
+
+    if (!server) {
+        return redirect("/")
+    }
+
+    return (
+		<div className="h-full">
+			<div className="hidden md:flex h-full w-60 z-20 flex-col fixed inset-y-0">
+                Server Sidebar
+            </div>
+			<main className="h-full md:pl-60">
+                {children}
+            </main>
+		</div>
+	);
+}
+
+export default ServerIdLayout;
+```
