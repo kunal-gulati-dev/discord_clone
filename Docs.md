@@ -1054,6 +1054,262 @@ export const NavigationItem = ({
 ```
 <Button className="bg-transparent border-0" variant="outline" size="icon">
 ```
-2. 
+2. Lets install zustand so that we can work with our modals.
+3. npm install zustand
+4. So, we will create a modal store where we will store the global state of the modal.
+5. create a folder in root directory named hooks and create a file named use-modal-store.ts to control all modal in our application.
+6. initial code for the modal hook.
+```
+import { create } from "zustand";
 
+export type ModalType = "createServer";
+
+
+interface ModalStore {
+    type: ModalType | null;
+    isOpen: boolean;
+    onOpen: (type: ModalType) => void;
+    onClose: () => void;
+}
+
+export const useModal = create<ModalStore>((set) => ({
+    type: null,
+    isOpen: false,
+    onOpen: (type) => set({isOpen: true, type}),
+    onClose: () => set({type: null, isOpen: false})
+}))
+```
+
+7. Now lets create our create server modal.
+8. Create a file named create-server-modal.tsx in components/modals and create a provider file named modal-provider.tsx in providers folder.
+Provder file code.
+```
+"use client";
+
+import { CreateServerModal } from "@/components/modals/create-server-modal";
+import { useEffect, useState } from "react";
+
+
+export const ModalProvider = () => {
+    const [isMounted, setIsMounted] = useState(false)
+
+    useEffect(() => {
+        setIsMounted(true)
+    }, [])
+
+    if (!isMounted) {
+        return null;
+    }
+
+    return (
+        <>
+            <CreateServerModal />
+        </>
+    )
+}
+```
+9. initial code for create-server-modal.tsx file.
+```
+"use client";
+
+import * as z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import axios from "axios";
+
+import {
+	Dialog,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogContent,
+} from "@/components/ui/dialog";
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+import { FileUpload } from "@/components/file-upload";
+import { useRouter } from "next/navigation";
+import { useModal } from "@/hooks/use-modal-store";
+
+const formSchema = z.object({
+	name: z.string().min(1, {
+		message: "Server name is required.",
+	}),
+	imageUrl: z.string().min(1, {
+		message: "Server image is required.",
+	}),
+});
+
+export const CreateServerModal = () => {
+	const {isOpen, onClose, type} = useModal();
+
+	const router = useRouter();
+
+    const isModalOpen = isOpen && type ==="createServer"
+
+	
+
+	const form = useForm({
+		resolver: zodResolver(formSchema),
+		defaultValues: {
+			name: "",
+			imageUrl: "",
+		},
+	});
+
+	const isLoading = form.formState.isSubmitting;
+
+	const onSubmit = async (values: z.infer<typeof formSchema>) => {
+		try {
+			await axios.post("/api/servers", values);
+
+			form.reset();
+			router.refresh();
+		} catch (error) {
+			console.log(error);
+		}
+	};
+
+    const handleClose = () => {
+        form.reset();
+        onClose();
+    }
+
+	return (
+		<Dialog open={isModalOpen} onOpenChange={handleClose}>
+			<DialogContent className="bg-white text-black p-0 overflow-hidden">
+				<DialogHeader className="pt-8 px-6">
+					<DialogTitle className="text-2xl text-center font-bold">
+						Customize your server
+					</DialogTitle>
+					<DialogDescription className="text-center text-zinc-500">
+						Give your server a personality with a name and an image.
+						You can always change it later.
+					</DialogDescription>
+				</DialogHeader>
+				<Form {...form}>
+					<form
+						onSubmit={form.handleSubmit(onSubmit)}
+						className="space-y-8"
+					>
+						<div className="space-y-8 px-6">
+							<div className="flex items-center justify-center text-center">
+								<FormField
+									control={form.control}
+									name="imageUrl"
+									render={({ field }) => (
+										<FormItem>
+											<FormControl>
+												<FileUpload
+													endpoint="serverImage"
+													value={field.value}
+													onChange={field.onChange}
+												/>
+											</FormControl>
+										</FormItem>
+									)}
+								/>
+							</div>
+
+							<FormField
+								control={form.control}
+								name="name"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel className="uppercase text-xs font-bold text-zinc-500 dark:text-secondary/70">
+											Server name
+										</FormLabel>
+										<FormControl>
+											<Input
+												disabled={isLoading}
+												className="bg-zinc-300/50 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0"
+												placeholder="Enter server name"
+												{...field}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
+						<DialogFooter className="bg-gray-100 px-6 py-4">
+							<Button variant="primary" disabled={isLoading}>
+								Create
+							</Button>
+						</DialogFooter>
+					</form>
+				</Form>
+			</DialogContent>
+		</Dialog>
+	);
+};
+
+```
+
+10. After that lets add this provider in the root layout.
+```
+<ClerkProvider>
+    <html lang="en" suppressHydrationWarning={true}>
+    <body className={cn(
+        font.className,
+        "bg-white dark:bg-[#313338]"
+        )}>
+        <ThemeProvider
+        attribute='class'
+        defaultTheme='dark'
+        enableSystem={false}
+        storageKey='discord-theme'
+        >
+        <ModalProvider />
+            {children}
+        </ThemeProvider>
+    </body>
+    </html>
+</ClerkProvider>
+```
+
+11. Now lets add the functionality on the click of Plus button to open the modal.
+12. Add this code in navigation-action.tsx file
+```
+import { useModal } from "@/hooks/use-modal-store";
+const { onOpen } = useModal();
+<button
+    onClick={() => onOpen("createServer")}
+    className="group flex items-center"
+>
+```
+============  IMPORTANT  ==============
+
+13. After this we will be getting an error that sidebar will not show on the screen.So , the solution of the problem is to shift the uploadthing css to global.css. 
+Step 1 :-
+- Remove the import for upload-thing styles inside file-upload.tsx component
+- DELETE => import "@uploadthing/react/styles.css";
+
+Step 2 :-
+- Add the import at the bottom of the globals.css file instead
+// globals.css
+...
+@import "~@uploadthing/react/styles.css";
+
+Step 3 (optional):
+- Wrap the tailwind config with "withUt":
+// tailwind.config.js
+
+const { withUt } = require("uploadthing/tw");
+module.exports = withUt({
+   ...leave everything the same
+});
+
+## Server Sidebar
+
+1. 
 
