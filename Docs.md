@@ -1514,3 +1514,134 @@ export type ServerWithMembersWithProfiles = Server & {
     members: (Member & { profile: Profile })[];
 }
 ```
+## Invitations
+
+1. So, Now we will create modals for all the features that we have mentioned above.
+2. Lets first Work on invite modal.
+3. add type, interface and data in hook.
+```
+export type ModalType = "createServer" | "invite";
+
+interface ModalData {
+    server?: Server
+}
+
+
+interface ModalStore {
+    type: ModalType | null;
+    data: ModalData
+    isOpen: boolean;
+    onOpen: (type: ModalType, data?: ModalData) => void;
+    onClose: () => void;
+}
+
+export const useModal = create<ModalStore>((set) => ({
+    type: null,
+    data: {},
+    isOpen: false,
+    onOpen: (type, data = {}) => set({isOpen: true, type, data}),
+    onClose: () => set({type: null, isOpen: false})
+}))
+```
+4. use This hook in server-header.tsx file.
+```
+const { onOpen } = useModal();
+<DropdownMenuItem
+    onClick={() => onOpen("invite", { server:server })}
+    className="text-indigo-600 dark:text-indigo-400 px-3 py-2 text-sm cursor-pointer"
+    >
+    Invite People
+    <UserPlus className="h-4 w-4 ml-auto" />
+</DropdownMenuItem>
+```
+5. Now lets create the invite modal. Create a file named invite-modal.tsx in components/modals.
+6. add this model component in the modal provider.
+7. Below mentioned is the basic layout of invite modal.
+```
+"use client";
+
+import {
+	Dialog,
+	DialogHeader,
+	DialogTitle,
+	DialogContent,
+} from "@/components/ui/dialog";
+import { useModal } from "@/hooks/use-modal-store";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Copy, RefreshCw } from "lucide-react";
+
+
+
+export const InviteModal = () => {
+	const { isOpen, onClose, type } = useModal();
+
+	const isModalOpen = isOpen && type === "invite";
+
+	
+
+	return (
+		<Dialog open={isModalOpen} onOpenChange={onClose}>
+			<DialogContent className="bg-white text-black p-0 overflow-hidden">
+				<DialogHeader className="pt-8 px-6">
+					<DialogTitle className="text-2xl text-center font-bold">
+						Invite friends
+					</DialogTitle>		
+				</DialogHeader>
+                <div className="p-6">
+                    <Label
+                        className="uppercase text-xs font-bold text-zinc-500 dark:text-secondary/70"
+                    >
+                        Server invite link
+                    </Label>
+                    <div className="flex items-center mt-2 gap-x-2">
+                        <Input
+                            className="bg-zinc-300/50 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0"
+                            value="invite-link"
+                        />
+                        <Button size="icon">
+                            <Copy
+                                className="w-4 h-4"
+                            />
+                        </Button>
+                    </div>
+                    <Button
+                        variant='link'
+                        size="sm"
+                        className="text-xs text-zinc-500 mt-4"
+                    >
+                        Generate a new link
+                        <RefreshCw
+                            className="w-4 h-4 ml-2"
+                        />
+                    </Button>
+                </div>
+			</DialogContent>
+		</Dialog>
+	);
+};
+
+```
+8. Now lets create a hook to read the current url. create a new file named use-origin.ts in the hooks folder.
+```
+import { useEffect, useState } from "react"
+
+export const useOrigin = () => {
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
+
+    const origin = typeof window !== "undefined" && window.location.origin ? window.location.origin : ""
+
+    if (!mounted) {
+        return "";
+    }
+
+    return origin
+
+}
+```
+9. Now lets use this hook in invite modal.
