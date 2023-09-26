@@ -1311,5 +1311,6 @@ module.exports = withUt({
 
 ## Server Sidebar
 
-1. 
-
+1. So, now we have to create a sidebar in the server page where we can show all the channels related to that particular server.
+2. Create the layout.tsx file inside [serverId] folder.
+3. 
