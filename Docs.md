@@ -1363,3 +1363,154 @@ const ServerIdLayout = async ({
 
 export default ServerIdLayout;
 ```
+4. We have to create a different component for this server sidebar.
+5. So create a new folder inside components named server and create server-sidebar.tsx file and inclde this components in layout.tsx file <ServerSidebar />.
+6. we have to get current profile in layout as well as ServerSidebar component because we are going to use these in mobile age also.
+7. give serverId as a prop to server-sidebar component. <ServerSidebar serverId={params.serverId} />
+8. create server-header.tsx file inside components/server directory and include it in server-sidebar.tsx.
+9. We have to make a different type file for server details type becuase we are populating it with multiple children data.
+10. So, Below mentioned is the code for server-sidebar.tsx.
+```
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { ChannelType } from "@prisma/client";
+import { redirect } from "next/navigation";
+
+import { ServerHeader } from "./server-header";
+
+interface ServerSidebarProps {
+    serverId: string;
+}
+
+
+
+export const ServerSidebar = async ({serverId} : ServerSidebarProps) => {
+    const profile = await currentProfile();
+
+    if (!profile) {
+        return redirect("/");
+    }
+
+    const server = await db.server.findUnique({
+        where: {
+            id: serverId,
+        },
+        include: {
+            channels: {
+                orderBy: {
+                    createdAt: "asc",
+                }
+            },
+            members: {
+                include: {
+                    profile: true,
+                },
+                orderBy: {
+                    role: "asc",
+                }
+            }
+        }
+    });
+
+
+    const textChannels = server?.channels.filter((channel) => channel.type === ChannelType.TEXT)
+    const audioChannels = server?.channels.filter((channel) => channel.type === ChannelType.AUDIO)
+    const videoChannels = server?.channels.filter((channel) => channel.type === ChannelType.VIDEO)
+
+    const members = server?.members.filter((member) => member.profileId !== profile.id)
+
+
+    if (!server) {
+        return redirect("/")
+    }
+
+    const role = server.members.find((member) => member.profileId === profile.id)?.role;
+
+    return (
+        <div className="flex flex-col h-full text-primary w-full dark:bg-[#2B2D31] bg-[#F2F3F5]">
+            <ServerHeader server={server} role={role} />
+        </div>
+    )
+}
+```
+11. Below mentioned is the code for server-header.tsx.
+```
+"use client";
+
+import { ServerWithMembersWithProfiles } from "@/types";
+import { MemberRole } from "@prisma/client";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ChevronDown, LogOut, PlusCircle, Settings, Trash, UserPlus, Users } from "lucide-react";
+
+interface ServerHeaderProps {
+    server: ServerWithMembersWithProfiles;
+    role?: MemberRole 
+}
+
+export const ServerHeader = ({
+    server,
+    role
+}: ServerHeaderProps) => {
+    const isAdmin = role === MemberRole.ADMIN;
+    const isModerator = isAdmin || role === MemberRole.MODERATOR;
+
+    return (
+		<DropdownMenu>
+			<DropdownMenuTrigger className="focus:outline-none" asChild>
+				<button className="w-full text-md font-semibold px-3 flex items-center h-12 border-neutral-200 dark:border-neutral-800 border-b-2 hover:bg-zinc-700/10 dark:hover:bg-zinc-700/50 transition">
+					{server.name}
+					<ChevronDown className="h-5 w-5 ml-auto" />
+				</button>
+			</DropdownMenuTrigger>
+			<DropdownMenuContent className="w-56 text-xs font-medium text-black dark:text-neutral-400 space-y-[2px]">
+				{isModerator && (
+					<DropdownMenuItem className="text-indigo-600 dark:text-indigo-400 px-3 py-2 text-sm cursor-pointer">
+						Invite People
+						<UserPlus className="h-4 w-4 ml-auto" />
+					</DropdownMenuItem>
+				)}
+				{isAdmin && (
+					<DropdownMenuItem className="px-3 py-2 text-sm cursor-pointer">
+						Server Settings
+						<Settings className="h-4 w-4 ml-auto" />
+					</DropdownMenuItem>
+				)}
+				{isAdmin && (
+					<DropdownMenuItem className="px-3 py-2 text-sm cursor-pointer">
+						Manage Memebers
+						<Users className="h-4 w-4 ml-auto" />
+					</DropdownMenuItem>
+				)}
+				{isModerator && (
+					<DropdownMenuItem className="px-3 py-2 text-sm cursor-pointer">
+						Create Channel
+						<PlusCircle className="h-4 w-4 ml-auto" />
+					</DropdownMenuItem>
+				)}
+				{isModerator && <DropdownMenuSeparator />}
+				{isAdmin && (
+					<DropdownMenuItem className="text-rose-500 px-3 py-2 text-sm cursor-pointer">
+						Delete Server
+						<Trash className="h-4 w-4 ml-auto" />
+					</DropdownMenuItem>
+				)}
+				{!isAdmin && (
+					<DropdownMenuItem className="text-rose-500 px-3 py-2 text-sm cursor-pointer">
+                        Leave Server
+						<LogOut className="h-4 w-4 ml-auto" />
+					</DropdownMenuItem>
+				)}
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);   
+}
+```
+12. below mentiooned is the code for types file which is created in the root directory named types.ts.
+```
+import {Server, Member, Profile} from "@prisma/client";
+
+
+export type ServerWithMembersWithProfiles = Server & {
+    members: (Member & { profile: Profile })[];
+}
+```
