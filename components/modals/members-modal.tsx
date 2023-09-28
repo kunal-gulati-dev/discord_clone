@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
+import qs from "query-string";
 import {
 	Dialog,
 	DialogHeader,
@@ -25,6 +25,9 @@ import {
 	DropdownMenuTrigger,
 	DropdownMenuSubTrigger
 } from "@/components/ui/dropdown-menu";
+import { MemberRole } from "@prisma/client";
+import axios from "axios";
+import { useRouter } from "next/navigation";
 
 
 
@@ -35,6 +38,8 @@ const roleIconMap = {
 }
 
 export const MembersModal = () => {
+	const router = useRouter();
+
 	const { isOpen, onClose, type, data, onOpen } = useModal();
 
 	const [loadingId, setLoadingId] = useState("");
@@ -42,6 +47,28 @@ export const MembersModal = () => {
 	const isModalOpen = isOpen && type === "members";
     
 	const { server } = data as {server: ServerWithMembersWithProfiles};
+
+	const onRoleChange = async (memberId: string, role: MemberRole) => {
+		try {
+			setLoadingId(memberId);
+			const url = qs.stringifyUrl({
+				url: `/api/members/${memberId}`,
+				query: {
+					serverId: server?.id,
+				}
+			});
+
+			const response = await axios.patch(url, { role })
+
+			router.refresh();
+			onOpen("members", {server: response.data});
+
+		} catch (error) {
+			console.log(error);
+		}finally {
+			setLoadingId("");
+		}
+	}	
 
 
 	return (
@@ -52,7 +79,7 @@ export const MembersModal = () => {
 						Manage Members
 					</DialogTitle>
 					<DialogDescription className="text-center text-zinc-500">
-						{server?.members.length} Members
+						{server?.members?.length} Members
 					</DialogDescription>
 				</DialogHeader>
 
@@ -90,7 +117,14 @@ export const MembersModal = () => {
 														</DropdownMenuSubTrigger>
 														<DropdownMenuPortal>
 															<DropdownMenuSubContent>
-																<DropdownMenuItem>
+																<DropdownMenuItem
+																	onClick={() =>
+																		onRoleChange(
+																			member.id,
+																			"GUEST"
+																		)
+																	}
+																>
 																	<Shield className="h-4 w-4 mr-2" />
 																	Guest
 																	{member.role ===
@@ -98,7 +132,14 @@ export const MembersModal = () => {
 																		<Check className="h-4 w-4 ml-auto" />
 																	)}
 																</DropdownMenuItem>
-																<DropdownMenuItem>
+																<DropdownMenuItem
+																	onClick={() =>
+																		onRoleChange(
+																			member.id,
+																			"MODERATOR"
+																		)
+																	}
+																>
 																	<ShieldCheck className="h-4 w-4 mr-2" />
 																	Moderator
 																	{member.role ===
@@ -118,11 +159,9 @@ export const MembersModal = () => {
 											</DropdownMenu>
 										</div>
 									)}
-									{loadingId === member.id && (
-										<Loader2
-											className="animate-spin text-zinc-500 ml-auto w-4 h-4"
-										/>
-									)}
+								{loadingId === member.id && (
+									<Loader2 className="animate-spin text-zinc-500 ml-auto w-4 h-4" />
+								)}
 							</div>
 						);
 					})}
