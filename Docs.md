@@ -2425,3 +2425,98 @@ const onRoleChange = async (memberId: string, role: MemberRole) => {
 		}
 	}
 ```
+21. Now lets work on kick option.
+22. create a function in members/[memberId]/route.ts file the code is given below.
+```
+export async function DELETE(
+    req: Request,
+    {params} : {params: {memberId: string}}
+) {
+    try {
+        const profile = await currentProfile();
+        const {searchParams} = new URL(req.url)
+
+        const serverId = searchParams.get("serverId")
+
+        if (!profile) {
+            return new NextResponse("Unauthorized", {status: 401})
+        }
+
+        if(!serverId) {
+            return new NextResponse("Server ID Missing", {status: 400})
+        }
+
+        if (!params.memberId) {
+            return new NextResponse("Member Id Missing", {status: 400})
+        }
+
+        const server = await db.server.update({
+            where: {
+                id: serverId,
+                profileId: profile.id,
+            },
+            data: {
+                members: {
+                    deleteMany: {
+                        id: params.memberId,
+                        profileId: {
+                            not: profile.id
+                        }
+                    }
+                }
+            },
+            include: {
+                members: {
+                    include: {
+                        profile: true,
+                    },
+                    orderBy: {
+                        role: "asc",
+                    }
+                }
+            }
+        })
+
+        return NextResponse.json(server)
+
+    } catch (error) {
+        console.log("[MEMBER_ID_DELETE]", error)
+        return new NextResponse("Internal Error", {status: 500})
+    }
+}
+```
+
+23. add onKick function in members-modal.tsx file.
+```
+const onKick = async (memberId: string) => {
+		try {
+			setLoadingId(memberId)
+			const url = qs.stringifyUrl({
+				url: `/api/members/${memberId}`,
+				query: {
+					serverId: server?.id
+				}
+			})
+
+			const response = await axios.delete(url);
+
+
+			router.refresh();
+			onOpen("members", {server: response.data})
+
+		} catch (error) {
+			console.log(error)
+		} finally {
+			setLoadingId("")
+		}
+	}
+```
+24. Add onClick function to Kick tag
+```
+<DropdownMenuItem
+    onClick={() => onKick(member.id)}
+>
+    <Gavel className="h-4 w-4 mr-2" />
+    Kick
+</DropdownMenuItem>
+```
