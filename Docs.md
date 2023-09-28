@@ -2520,3 +2520,7 @@ const onKick = async (memberId: string) => {
     Kick
 </DropdownMenuItem>
 ```
+
+## Channel Creation
+
+1. 
