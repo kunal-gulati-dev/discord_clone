@@ -1645,3 +1645,184 @@ export const useOrigin = () => {
 }
 ```
 9. Now lets use this hook in invite modal.
+10. So What is the scenario now, we have to create two new states copied and isLoading, create onCopy function which will copy the text to clipboard and onNew() function which will update the invite code, below mentioned are the changes we need to make in the invitte-modal.tsx file and add isLoading to button.
+```
+const { isOpen, onClose, type, data, onOpen } = useModal();
+const [copied, setCopied] = useState(false)
+const [isLoading, setIsLoading] = useState(false);
+
+const onCopy = () => {
+    navigator.clipboard.writeText(inviteUrl);
+    setCopied(true)
+
+    setTimeout(() => {
+        setCopied(false)
+    }, 1000);
+}
+
+const onNew = async () => {
+    try {
+        setIsLoading(true)
+        const response = await axios.patch(`/api/servers/${server?.id}/invite-code`);
+        onOpen("invite", {server: response.data})
+    } catch (error) {
+        console.log(error)
+    } finally {
+        setIsLoading(false)
+    }
+}
+
+<Button size="icon" onClick={onCopy} disabled={isLoading}>
+    {copied ? (
+        <Check className="w-4 h-4" />
+    ) : (
+        <Copy className="w-4 h-4" />
+    )}
+</Button>
+
+```
+11. after this if we try to click on generate new link we will be getting an axios error 404.
+12. create this folder structure api/servers/[serverId]/invite-code/route.ts and the code is mentioned below.
+```
+import { currentProfile } from "@/lib/current-profile"
+import { db } from "@/lib/db";
+import { NextResponse } from "next/server"
+import { v4 as uuidv4 } from 'uuid';
+
+export async function PATCH(
+    req: Request,
+    {params} : {params: {serverId: string}}
+) {
+    try {
+        const profile = await currentProfile();
+
+        if (!profile) {
+            return new NextResponse("Unauthorized", {status: 401})
+        }
+
+        if (!params.serverId) {
+            return new NextResponse("Server ID Missing", {status: 400})
+        }
+
+        const server = await db.server.update({
+            where: {
+                id:params.serverId,
+                profileId: profile.id,
+            },
+            data: {
+                inviteCode: uuidv4(),
+            }
+        })
+
+        return NextResponse.json(server);
+
+    } catch (error) {
+        console.log("[SERVER_ID]", error)
+        return new NextResponse("Internal Error", {status: 500})
+    }
+}
+```
+13. after this we will be able to generate new invite code for the server but if copy it and give it to some user and he uses to enter a server he can not because he will be getting 404 error.
+14. So lets fix this now.
+15. Create this directory in the app folder (invite)/(routes)/invite/[inviteCode]/page.tsx.
+16. Below mentioned is the code for above mentioned file.
+```
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+
+import { redirectToSignIn } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
+
+interface InviteCodePageProps {
+    params: {
+        inviteCode: string;
+    };
+}
+
+
+
+const InviteCodePage = async ({
+    params
+}: InviteCodePageProps) => {
+
+    const profile = await currentProfile();
+
+    if (!profile) {
+        return redirectToSignIn();
+    }
+
+    if (!params.inviteCode) {
+        return redirect("/")
+    }
+
+    const existingServer = await db.server.findFirst({
+        where: {
+            inviteCode: params.inviteCode,
+            members: {
+                some: {
+                    profileId: profile.id
+                }
+            }
+        }
+    })
+
+    if (existingServer) {
+        return redirect(`/servers/${existingServer.id}`)
+    }
+
+    const server = await db.server.update({
+        where: {
+            inviteCode: params.inviteCode,
+        },
+        data: {
+            members: {
+                create: {
+                    profileId: profile.id
+                }
+            }
+        }
+    })
+
+
+    return (
+        <div>
+            Hello Invite
+        </div>
+    );
+}
+ 
+export default InviteCodePage;
+```
+
+17. We will be getting an error because of the db schema, So change the inviteCode to @unique and run the following commands.
+npx prisma generate
+npx prisma db push
+18. It will make changes to the db. but since we are changing the key to unique key so it will generate a warning to delete all data of the server. For that we need to reset the database by writing these commands.
+npx prisma migrate reset
+npx prisma generate
+npx prisma db push
+and run the server again and it will bring us to home page where we need to create the server again.
+19. updated code for the above mentioned file.
+```
+const server = await db.server.update({
+    where: {
+        inviteCode: params.inviteCode,
+    },
+    data: {
+        members: {
+            create: [
+                {
+                    profileId: profile.id,
+                },
+            ],
+        },
+    },
+});
+
+if (server) {
+    return redirect(`/servers/${server.id}`);
+}
+
+
+return null;
+```
