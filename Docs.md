@@ -2523,4 +2523,8 @@ const onKick = async (memberId: string) => {
 
 ## Channel Creation
 
-1. 
+1. Add "createChannel" in the use-modal-store file.
+2. create a file in components/modals named create-channel-modal.tsx
+3. add component to modal-provider.tsx file.
+4. Go to server-header.tsx file and add onClick function on Create channel tag.
+5. 
