@@ -2527,4 +2527,373 @@ const onKick = async (memberId: string) => {
 2. create a file in components/modals named create-channel-modal.tsx
 3. add component to modal-provider.tsx file.
 4. Go to server-header.tsx file and add onClick function on Create channel tag.
-5. 
+5. Below mentioned code the initial code for create-channel-modal.tsx
+```
+"use client";
+
+import * as z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import axios from "axios";
+
+import {
+	Dialog,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogContent,
+} from "@/components/ui/dialog";
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+
+import { useRouter } from "next/navigation";
+import { useModal } from "@/hooks/use-modal-store";
+
+const formSchema = z.object({
+	name: z.string().min(1, {
+		message: "Server name is required.",
+	})
+});
+
+export const CreateChannelModal = () => {
+	const { isOpen, onClose, type } = useModal();
+
+	const router = useRouter();
+
+	const isModalOpen = isOpen && type === "createChannel";
+
+	const form = useForm({
+		resolver: zodResolver(formSchema),
+		defaultValues: {
+			name: "",
+		},
+	});
+
+	const isLoading = form.formState.isSubmitting;
+
+	const onSubmit = async (values: z.infer<typeof formSchema>) => {
+		try {
+			await axios.post("/api/servers", values);
+
+			form.reset();
+			router.refresh();
+			onClose();
+		} catch (error) {
+			console.log(error);
+		}
+	};
+
+	const handleClose = () => {
+		form.reset();
+		onClose();
+	};
+
+	return (
+		<Dialog open={isModalOpen} onOpenChange={handleClose}>
+			<DialogContent className="bg-white text-black p-0 overflow-hidden">
+				<DialogHeader className="pt-8 px-6">
+					<DialogTitle className="text-2xl text-center font-bold">
+						Create Channel
+					</DialogTitle>
+				</DialogHeader>
+				<Form {...form}>
+					<form
+						onSubmit={form.handleSubmit(onSubmit)}
+						className="space-y-8"
+					>
+						<div className="space-y-8 px-6">
+
+							<FormField
+								control={form.control}
+								name="name"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel className="uppercase text-xs font-bold text-zinc-500 dark:text-secondary/70">
+											Channel name
+										</FormLabel>
+										<FormControl>
+											<Input
+												disabled={isLoading}
+												className="bg-zinc-300/50 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0"
+												placeholder="Enter channel name"
+												{...field}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
+						<DialogFooter className="bg-gray-100 px-6 py-4">
+							<Button variant="primary" disabled={isLoading}>
+								Create
+							</Button>
+						</DialogFooter>
+					</form>
+				</Form>
+			</DialogContent>
+		</Dialog>
+	);
+};
+
+```
+6. So now we have to add a component from shadcn ui which is going to enable us to pick the type of new create channel because channel can be of many types.
+7. npx shadcn-ui@latest add select
+8. add type in the form, add select field in the form, make channel type TEXT by defualt in the form.
+9. After adding the form control we have to take care of a filter of the channel to solve this problem we have to use query string library.
+10. The final code for app/api/channels/routes.ts file.
+```
+import { currentProfile } from "@/lib/current-profile"
+import { db } from "@/lib/db";
+import { MemberRole } from "@prisma/client";
+import { NextResponse } from "next/server"
+
+export async function POST(
+    req: Request
+) {
+    try {
+        const profile = await currentProfile();
+
+        const {name, type} = await req.json()
+
+        const { searchParams } = new URL(req.url);
+
+        const serverId = searchParams.get("serverId")
+
+        if (!profile) {
+            return new NextResponse("Unauthorized", {status: 401})
+        }
+
+        if (!serverId) {
+            return new NextResponse("Server ID missing", {status: 400})
+        }
+
+        if (name === "general") {
+            return new NextResponse("Name cannot be 'general'", {status: 400})
+        }
+
+        const server = await db.server.update({
+            where: {
+                id: serverId,
+                members: {
+                    some: {
+                        profileId: profile.id,
+                        role: {
+                            in: [MemberRole.ADMIN, MemberRole.MODERATOR]
+                        }
+                    }
+                }
+            },
+            data: {
+                channels: {
+                    create: {
+                        profileId: profile.id,
+                        name,
+                        type
+                    }
+                }
+            }
+
+        })
+
+        return NextResponse.json(server);
+
+
+    } catch (error) {
+        console.log("[CHANNELS_POST]", error)
+        return new NextResponse("Internal Error", {status: 500})
+    }
+}
+```
+
+11. The final code for create-channel-modal.tsx file.
+```
+"use client";
+
+import qs from "query-string";
+import * as z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import axios from "axios";
+
+import {
+	Dialog,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogContent,
+} from "@/components/ui/dialog";
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+
+import { useParams, useRouter } from "next/navigation";
+import { useModal } from "@/hooks/use-modal-store";
+import {
+    SelectContent,
+    Select,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { ChannelType } from "@prisma/client";
+
+
+
+const formSchema = z.object({
+	name: z.string().min(1, {
+		message: "Channel name is required.",
+	}).refine(
+        name => name !== "general", 
+        {
+            message: "Channel name cannot be 'general'"
+        }
+    ),
+    type: z.nativeEnum(ChannelType)
+});
+
+export const CreateChannelModal = () => {
+	const { isOpen, onClose, type } = useModal();
+
+	const router = useRouter();
+    const params = useParams();
+
+	const isModalOpen = isOpen && type === "createChannel";
+
+	const form = useForm({
+		resolver: zodResolver(formSchema),
+		defaultValues: {
+			name: "",
+            type: ChannelType.TEXT
+		},
+	});
+
+	const isLoading = form.formState.isSubmitting;
+
+	const onSubmit = async (values: z.infer<typeof formSchema>) => {
+		try {
+            const url = qs.stringifyUrl({
+                url: "/api/channels",
+                query: {
+                    serverId: params?.serverId
+                }
+            })
+			await axios.post(url, values);
+
+			form.reset();
+			router.refresh();
+			onClose();
+		} catch (error) {
+			console.log(error);
+		}
+	};
+
+	const handleClose = () => {
+		form.reset();
+		onClose();
+	};
+
+	return (
+		<Dialog open={isModalOpen} onOpenChange={handleClose}>
+			<DialogContent className="bg-white text-black p-0 overflow-hidden">
+				<DialogHeader className="pt-8 px-6">
+					<DialogTitle className="text-2xl text-center font-bold">
+						Create Channel
+					</DialogTitle>
+				</DialogHeader>
+				<Form {...form}>
+					<form
+						onSubmit={form.handleSubmit(onSubmit)}
+						className="space-y-8"
+					>
+						<div className="space-y-8 px-6">
+
+							<FormField
+								control={form.control}
+								name="name"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel className="uppercase text-xs font-bold text-zinc-500 dark:text-secondary/70">
+											Channel name
+										</FormLabel>
+										<FormControl>
+											<Input
+												disabled={isLoading}
+												className="bg-zinc-300/50 border-0 focus-visible:ring-0 text-black focus-visible:ring-offset-0"
+												placeholder="Enter channel name"
+												{...field}
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+                            <FormField
+                                control={form.control}
+                                name="type"
+                                render={({field}) => (
+                                    <FormItem>
+                                        <FormLabel>Channel Type</FormLabel>
+                                        <Select
+                                            disabled={isLoading}
+                                            onValueChange={field.onChange}
+                                            defaultValue={field.value}
+                                        >
+                                            <FormControl>
+                                                <SelectTrigger
+                                                    className="bg-zinc-300/50 border-0 focus:ring-0 text-black ring-offset-0 focus:ring-offset-0 capitalize outline-none"
+                                                >
+                                                    <SelectValue
+                                                        placeholder="Select a channel type"
+                                                    />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                {Object.values(ChannelType).map((type) => (
+                                                    <SelectItem
+                                                        key={type}
+                                                        value={type}
+                                                        className="capitalize"
+                                                    >
+                                                        {type.toLowerCase()}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+						</div>
+						<DialogFooter className="bg-gray-100 px-6 py-4">
+							<Button variant="primary" disabled={isLoading}>
+								Create
+							</Button>
+						</DialogFooter>
+					</form>
+				</Form>
+			</DialogContent>
+		</Dialog>
+	);
+};
+```
+## Delete and Leave server Modal
+
+
