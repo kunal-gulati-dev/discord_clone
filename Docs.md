@@ -2046,4 +2046,117 @@ export async function PATCH(
 ## Manage Members
 
 1. So now lets work on the manage members functionality.
-2. 
+2. let visit use modal store and add "members" to the type.
+3. create a new file in components/modals named members-modal.tsx. and add this component to the modal-provider. tsx file.
+4. Go to server-header.tsx file and add onClick function to manage members tag.
+```
+<DropdownMenuItem 
+    onClick={() => onOpen("members", {server})}
+    className="px-3 py-2 text-sm cursor-pointer"
+>
+    Manage Memebers
+    <Users className="h-4 w-4 ml-auto" />
+</DropdownMenuItem>
+```
+5. After making some changes to members-modal.tsx file, typescript will give an error on server.members because in the modal store we are only passing server, So to fix this error we have to use types.ts file and change the code for const {server}
+
+```
+const { server } = data as {server: ServerWithMembersWithProfiles};
+```
+6. The final code will be in the last but till then I will explain the steps in between.
+7. after modifying the members-modal.tsx file we have to create a new component user-avatar.tsx file in the components folder.
+8. install new shadcn library
+npx shadcn-ui@latest add avatar
+9. Till now this is the code for members-modal.tsx file in which we have showed the members in the server and user-avatar.tsx file which is used to show avatar of the user.
+```
+"use client";
+
+import { useState } from "react";
+import {
+	Dialog,
+	DialogHeader,
+	DialogTitle,
+	DialogContent,
+	DialogDescription,
+} from "@/components/ui/dialog";
+import { useModal } from "@/hooks/use-modal-store";
+import { ServerWithMembersWithProfiles } from "@/types";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { UserAvatar } from "@/components/user-avatar";
+import { ShieldAlert, ShieldCheck } from "lucide-react";
+
+const roleIconMap = {
+	"GUEST" : null,
+	"MODERATOR" : <ShieldCheck className="h-4 w-4 ml-2 text-indigo-500" />,
+	"ADMIN" : <ShieldAlert className="h-4 w-4 text-rose-500" />
+}
+
+export const MembersModal = () => {
+	const { isOpen, onClose, type, data, onOpen } = useModal();
+
+	const isModalOpen = isOpen && type === "members";
+    
+	const { server } = data as {server: ServerWithMembersWithProfiles};
+
+
+	return (
+		<Dialog open={isModalOpen} onOpenChange={onClose}>
+			<DialogContent className="bg-white text-black overflow-hidden">
+				<DialogHeader className="pt-8 px-6">
+					<DialogTitle className="text-2xl text-center font-bold">
+						Manage Members
+					</DialogTitle>
+					<DialogDescription className="text-center text-zinc-500">
+						{server?.members.length} Members
+					</DialogDescription>
+				</DialogHeader>
+
+				<ScrollArea
+					className="mt-8 max-h-[420px] pr-6"
+				>
+					{server?.members?.map((member) => {
+						return (
+							<div key={member.id} className="flex items-center gap-x-2 mb-6">
+								<UserAvatar src={member.profile.imageUrl} />
+								<div className="flex flex-col gap-y-1">
+									<div className="text-xs font-semibold flex items-center gap-x-1">
+										{member.profile.name}
+										{roleIconMap[member.role]}
+									</div>
+									<p className="text-xs text-zinc-500">{member.profile.email}</p>
+								</div>
+							</div>
+						)
+					})}
+				</ScrollArea>
+			</DialogContent>
+		</Dialog>
+	);
+};
+
+```
+10. Given below is the code for user-avatar.tsx file.
+```
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
+
+interface UserAvatarProps {
+    src? : string;
+    className? : string;
+};
+
+
+export const UserAvatar = ({
+    src,
+    className
+} : UserAvatarProps) => {
+    return (
+        <Avatar className={cn("h-7 w-7 md:h-10 md:w-10", className)}>
+            <AvatarImage src={src} />
+        </Avatar>
+    )
+}
+```
+11. Now we have to work on the options on the right side with which the admin can give permissions to user or make changes to the user.
+12. we have to add Dropdown menu in the file and create functions which will change the role of users.
+13. 
