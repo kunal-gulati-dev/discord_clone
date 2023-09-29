@@ -3120,3 +3120,17 @@ export async function DELETE(
 }
 ```
 
+## Search Server Modal
+1. Now we have to create a new component for search.
+2. Add ScrollArea component in the server-sidebar.tsx file.
+```
+<ScrollArea className="flex-1 px-3">
+    <div className="mt-2">
+        <ServerSearch />
+    </div>
+</ScrollArea>
+```
+3. Now we have to create Server Search component.
+4. create a new file named server-search.tsx in components/server folder.
+5. 
+
