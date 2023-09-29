@@ -2896,4 +2896,108 @@ export const CreateChannelModal = () => {
 ```
 ## Delete and Leave server Modal
 
+1. Lets first build leave server functionality.
+2. make sure to have atleat 2 people in the same server and  having admin access and other having guest access.
+3. add "leaverServer" in the use-modal-store.ts file.
+4. create leave-server-modal.tsx file in components/modals folder.
+5. add this file in the providers.
+6. add onClick function on Leaver server tag in server-header.tsx file.
+```
+{!isAdmin && (
+    <DropdownMenuItem
+        onClick={() => onOpen("leaveServer", {server})}
+        className="text-rose-500 px-3 py-2 text-sm cursor-pointer"
+        >
+        Leave Server
+        <LogOut className="h-4 w-4 ml-auto" />
+    </DropdownMenuItem>
+)}
+```
+7. The structure of leave-server-modal.tsx file is represent below.
+```
+"use client";
+
+import { useState } from "react";
+import axios from "axios";
+import { useRouter } from "next/navigation";
+import {
+	Dialog,
+	DialogHeader,
+	DialogTitle,
+	DialogContent,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { useModal } from "@/hooks/use-modal-store";
+import { Button } from "@/components/ui/button";
+
+
+export const LeaveServerModal = () => {
+	const { isOpen, onClose, type, data } = useModal();
+    const router = useRouter();
+
+	const isModalOpen = isOpen && type === "leaveServer";
+	const { server } = data;
+	const [isLoading, setIsLoading] = useState(false);
+
+
+    const onClick = async () => {
+        try {
+            setIsLoading(true)
+
+            await axios.patch(`/api/servers/${server?.id}/leave`)
+            onClose();
+            router.refresh();
+            router.push("/")
+
+        } catch (error) {
+            console.log(error)
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+	return (
+		<Dialog open={isModalOpen} onOpenChange={onClose}>
+			<DialogContent className="bg-white text-black p-0 overflow-hidden">
+				<DialogHeader className="pt-8 px-6">
+					<DialogTitle className="text-2xl text-center font-bold">
+						Leave Server
+					</DialogTitle>
+					<DialogDescription className="text-center text-zinc-500">
+						Are you sure you want to leave{" "}
+						<span className="font-semibold text-indigo-500">
+							{server?.name}
+						</span>
+						?
+					</DialogDescription>
+				</DialogHeader>
+				<DialogFooter className="bg-gray-100 px-6 py-4">
+					<div className="flex items-center justify-between w-full">
+						<Button
+							disabled={isLoading}
+							onClick={onClose}
+							variant="ghost"
+						>
+							Cancel
+						</Button>
+						<Button
+							disabled={isLoading}
+							variant="primary"
+							onClick={onClick}
+						>
+							Confirm
+						</Button>
+					</div>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+};
+
+```
+8. create a route.ts file in api/servers/[serverId]/leave/route.ts.
+9. Now we have to create Delete server Modal which is kind of similar.
+10. 
+
 
