@@ -3513,4 +3513,7 @@ export const ServerSidebar = async ({serverId} : ServerSidebarProps) => {
 }
 ```
 
+## Server Channels List
+1. 
+
 

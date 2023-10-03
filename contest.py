@@ -142,3 +142,216 @@ class Solution:
 while fast.next is not None:
 
 AttributeError: "NoneType" object has no attribute "next"
+
+
+
+contest 2
+
+
+Given a set of N intervals denoted by 2D array A of size N * 2, the task is to find the length of maximal set of mutually disjoint intervals.
+
+two intervals [x, y] and [p, q] are said to be disjoint if they do not have any point in common.
+
+Return a integer denoting the length of maximal set of mutually disjoint intervals.
+
+
+class Solution:
+    def solve(self, A):
+        if not A:
+            return 0
+
+        # Sort the intervals by their ending points
+        A.sort(key=lambda interval: interval[1])
+
+        count = 1  # Initialize count to 1 since the first interval is always selected
+        end = A[0][1]
+
+        for i in range(1, len(A)):
+            if A[i][0] > end:  # If the interval doesn't overlap with the previous one
+                count += 1
+                end = A[i][1]
+
+        return count
+
+
+Thomas found an array A of length n representing some integer numbers. The array was initially sorted in ascending order. He kept the array and went to get some food, on returning he found his brother has rotated it by some amount between 1 and n.
+
+For Example, the sorted array which Thomas had was A = [0,1,2, 4, 5, 6, 7], became:
+    1. [4, 5, 6, 7, 0, 1, 2] if it was rotated 4 times.
+    2. [0, 1, 2, 4, 5, 6, 7] if it was rotated 7 times.
+
+Rotating an array [a[0], a[1], a[2], .....a[n - 1]] by one time shifts the elements in such a way that the result is the array [a[n - 1], a[0], a[1], a[2], ....a[n - 2]]
+
+Given the sorted rotated array A of unique elements, return the minimum element of this array.
+
+You must write an alogorithm that runs O(logn) times.
+
+
+class Solution:
+    def findMin(self, A):
+        left, right = 0, len(A) - 1
+
+        while left < right:
+            mid = left + (right - left) // 2
+
+            if A[mid] > A[right]:
+                left = mid + 1
+            else:
+                right = mid
+
+        return A[left]
+
+
+
+
+
+Given a matrix of integers A of size N * M and an integer B.
+
+In a given matrix every row and column is sorted in non decreasing order. Find and return the position of B in the matrix in the given form.
+1. if A[i][j] = B then return (i * 1009 + j)
+2.  If B is not present return -1
+
+Note 1: Rows are numbered from top to bottom and columns are numbered from left to right.
+Note 2: If there are multiple B in A then return the smallest value of i*1009 + j such that A[i][j] = B. 
+Note 3: Expected time complexity is linear.
+Note 4: Use 1-based indexing.
+
+
+class Solution:
+    def solve(self, A, B):
+        n = len(A)
+        m = len(A[0])
+        i, j = 0, m - 1
+
+        while i < n and j >= 0:
+            if A[i][j] == B:
+                return (i + 1) * 1009 + (j + 1)
+            elif A[i][j] > B:
+                j -= 1
+            else:
+                i += 1
+
+        return -1
+
+
+
+
+
+Say you have an array A, for which the ith element is the price of a given stock on day i.
+If you were only permitted to complete at most one transaction (ie. buy one and sell one share of the stock), design an algorithm to find the maximum profit.
+Return the maximum possible profit.
+
+
+class Solution:
+    def maxProfit(self, A):
+        if not A:
+            return 0
+
+        min_price = A[0]  # Initialize the minimum price as the first element
+        max_profit = 0  # Initialize the maximum profit as 0
+
+        for price in A:
+            # Update the minimum price if needed
+            min_price = min(min_price, price)
+            # Update the maximum profit
+            max_profit = max(max_profit, price - min_price)
+
+        return max_profit
+
+
+Determine the "GOOD"ness of a given string A, where the "GOOD"ness is defined by the length of the longest substring that contains no repeating characters. the greater the length of this unique-character substring, the higher the "GOOD"ness of the string.
+
+Your task is to return an integer representing the "GOOD"ness of string A. 
+
+Note: The solution should be achieved in O(N) time complexity, where N is the length of the string.
+
+
+class Solution:
+    def lengthOfLongestSubstring(self, A):
+        n = len(A)
+        if n <= 1:
+            return n
+
+        char_index = {}  # Dictionary to store the last seen index of each character
+        max_length = 0  # Initialize the maximum substring length
+        start = 0  # Initialize the start of the sliding window
+
+        for end in range(n):
+            if A[end] in char_index and char_index[A[end]] >= start:
+                # If the character is already in the current substring, update the start
+                start = char_index[A[end]] + 1
+            # Update the last seen index of the character
+            char_index[A[end]] = end
+            # Update the maximum length
+            max_length = max(max_length, end - start + 1)
+
+        return max_length
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
