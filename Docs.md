@@ -3514,6 +3514,447 @@ export const ServerSidebar = async ({serverId} : ServerSidebarProps) => {
 ```
 
 ## Server Channels List
-1. 
+1. Now we have to list down all the channels in sidebar.
+2. create a new component named server-seciton.tsx.
+3. Below mentioned code is for server-section.tsx file.
+```
+"use client"
+
+import { ServerWithMembersWithProfiles } from "@/types";
+
+import { ChannelType, MemberRole } from "@prisma/client";
+import { ActionTooltip } from "@/components/action-tooltip";
+import { Plus, Settings } from "lucide-react";
+import { useModal } from "@/hooks/use-modal-store";
+
+
+interface ServerSectionProps {
+    label: string;
+    role?: MemberRole;
+    sectionType: "channels" | "members";
+    channelType?: ChannelType;
+    server?: ServerWithMembersWithProfiles;
+}
+
+
+export const ServerSection = ({
+    label,
+    role,
+    sectionType,
+    channelType,
+    server
+} : ServerSectionProps) => {
+
+    const {onOpen} = useModal();
+
+
+    return (
+		<div className="flex items-center justify-between py-2">
+			<p className="text-xs uppercase font-semibold text-zinc-500 dark:text-zinc-400">
+				{label}
+			</p>
+			{role !== MemberRole.GUEST && sectionType == "channels" && (
+				<ActionTooltip label="Create Channel" side="top" align="center">
+					<button
+						onClick={() => onOpen("createChannel")}
+						className="text-zinc-500 hover:text-zinc-600 dark:text-xinc-400 dark:hover:text-zinc-300 transition"
+					>
+						<Plus className="h-4 w-4" />
+					</button>
+				</ActionTooltip>
+			)}
+			{role === MemberRole.ADMIN && sectionType === "members" && (
+				<ActionTooltip label="Create Channel" side="top" align="center">
+					<button
+						onClick={() => onOpen("members" , {server})}
+						className="text-zinc-500 hover:text-zinc-600 dark:text-xinc-400 dark:hover:text-zinc-300 transition"
+					>
+						<Settings className="h-4 w-4" />
+					</button>
+				</ActionTooltip>
+			)}
+		</div>
+	);
+}
+```
+4. add above component in the server-sidebar.tsx file under server-search tag.
+```
+<Separator className="bg-zinc-200 dark:bg-zinc-700 rounded-md my-2" />
+{!!textChannels?.length && (
+    <div className="mb-2">
+        <ServerSection
+            sectionType="channels"
+            channelType={ChannelType.TEXT}
+            role={role}
+            label="Text Channels"
+        />
+    </div>
+)}
+```
+5. Till now we have added the functionality for a user on the bases on role to create a channel Now we have to add the list of channles the use has, So create a component named server-channel.tsx file and add it to server-sidebar.tsx file under serverAction tag.
+6. Create a file named server-channel.tsx.
+7. Below mentioned code is the basic structure of the channel listing in server-channel.tsx file.
+```
+"use client"
+
+import { Channel, ChannelType, MemberRole, Server } from "@prisma/client";
+import { Hash, Mic, Video } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+
+import { cn } from "@/lib/utils";
+
+interface ServerChannelProps {
+    channel: Channel;
+    server: Server;
+    role?: MemberRole;
+}
+
+const IconMap = {
+    [ChannelType.TEXT] : Hash,
+    [ChannelType.AUDIO] : Mic,
+    [ChannelType.VIDEO] : Video,
+
+}
+
+
+
+export const ServerChannel = ({
+    channel,
+    server,
+    role
+} : ServerChannelProps) => {
+
+    const params = useParams();
+    const router = useRouter();
+
+    const Icon = IconMap[channel.type];
+
+
+    return (
+        <button
+            onClick={() => {}}
+            className={cn(
+                "group px-2 py-2 rounded-md flex items-center gap-x-2 w-full hover:bg-zinc-700/10 dark:hover:bg-zinc-700/50 transition mb-1",
+                params?.channelId === channel.id && "bg-zinc-700/20 dark:bg-zinc-700"
+            )}
+        >
+            <Icon className="flex-shrink-0 w-5 h-5 text-zinc-500 dark:text-zinc-400" />
+            <p className={cn(
+                "line-clamp-1 font-semibold text-sm text-zinc-500 group-hover:text-zinc-600 dark:text-zinc-400 dark:group-hover:text-zinc-300 transition",
+                params?.channelId === channel.id && "text-primary dark:text-zinc-200 dark:group-hover:text-white"
+            )}>
+                {channel.name}
+            </p>
+        </button>
+    )
+}
+```
+8. add this code in the server-sidebar.tsx file under ServerSection tag.
+```
+{textChannels.map((channel) => {
+    return (
+        <ServerChannel
+            key={channel.id}
+            channel={channel}
+            role={role}
+            server={server}
+        />
+    )
+})}
+```
+9. Now we have to add the functionalities like edit channel, delete channel etc, So we have to add some icons in the server-channel.tsx file.
+10. Under the channel name tag we have to conditionally add the edit and delete icon.
+below is the code for adding edit and delete icon.
+```
+{channel.name !== "general" && role !== MemberRole.GUEST && (
+    <div className="ml-auto flex items-center gap-x-2">
+        <ActionTooltip align="center" label="Edit">
+            <Edit className="hidden group-hover:block w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-300 transition" />
+        </ActionTooltip>
+        <ActionTooltip align="center" label="Delete">
+            <Trash className="hidden group-hover:block w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-300 transition" />
+        </ActionTooltip>
+    </div>
+)}
+{channel.name === "general" && (
+    <Lock
+        className="ml-auto w-4 h-4 text-zinc-500 dark:text-zinc-400"
+    />
+)}
+```
+11. Now we have to finish the side bar with audio as well as video channels.
+12. So add the following code in server-sidebar.tsx file to show audio as well as video channels.
+```
+{!!audioChannels?.length && (
+    <div className="mb-2">
+        <ServerSection
+            sectionType="channels"
+            channelType={ChannelType.AUDIO}
+            role={role}
+            label="Voice Channels"
+        />
+        {audioChannels.map((channel) => {
+            return (
+                <ServerChannel
+                    key={channel.id}
+                    channel={channel}
+                    role={role}
+                    server={server}
+                />
+            );
+        })}
+    </div>
+)}
+{!!videoChannels?.length && (
+    <div className="mb-2">
+        <ServerSection
+            sectionType="channels"
+            channelType={ChannelType.VIDEO}
+            role={role}
+            label="Video Channels"
+        />
+        {videoChannels.map((channel) => {
+            return (
+                <ServerChannel
+                    key={channel.id}
+                    channel={channel}
+                    role={role}
+                    server={server}
+                />
+            );
+        })}
+    </div>
+)}
+```
+13. Now we have to show all the members in the side bar, So add the following code in the side under the videoChannel tag.
+```
+
+{!!members?.length && (
+<div className="mb-2">
+    <ServerSection
+        sectionType="members"
+        role={role}
+        label="Members"
+        server={server}
+    />
+    {members.map((member) => {
+        return (
+            <ServerMember />
+        );
+    })}
+</div>
+)}
+```
+14. Create a new components named server-mamber.tsx.
+15. Basic Structure of the server-member.tsx file.
+```
+"use client"
+
+export const ServerMember = () => {
+    return (
+        <div>
+            Server member
+        </div>
+    )
+}
+```
+16. Now we have to add padding to add the channels.
+17. So add this code above every map function which displays the channels.
+```
+<div className="space-y-[2px]"></div>
+```
+18. After this we found an mistake on the manage memebers section we found out that is shows "Create Channel", So change it to "Manage Members" in server-section.tsx file
+```
+<ActionTooltip label="Manage Members" side="top" align="center">
+```
+19. The updated code for server-sidebar.tsx file.
+```
+<Separator className="bg-zinc-200 dark:bg-zinc-700 rounded-md my-2" />
+{!!textChannels?.length && (
+    <div className="mb-2">
+        <ServerSection
+            sectionType="channels"
+            channelType={ChannelType.TEXT}
+            role={role}
+            label="Text Channels"
+        />
+        <div className="space-y-[2px]">
+            {textChannels.map((channel) => {
+                return (
+                    <ServerChannel
+                        key={channel.id}
+                        channel={channel}
+                        role={role}
+                        server={server}
+                    />
+                );
+            })}
+        </div>
+    </div>
+)}
+{!!audioChannels?.length && (
+    <div className="mb-2">
+        <ServerSection
+            sectionType="channels"
+            channelType={ChannelType.AUDIO}
+            role={role}
+            label="Voice Channels"
+        />
+        <div className="space-y-[2px]">
+            {audioChannels.map((channel) => {
+                return (
+                    <ServerChannel
+                        key={channel.id}
+                        channel={channel}
+                        role={role}
+                        server={server}
+                    />
+                );
+            })}
+        </div>
+    </div>
+)}
+{!!videoChannels?.length && (
+    <div className="mb-2">
+        <ServerSection
+            sectionType="channels"
+            channelType={ChannelType.VIDEO}
+            role={role}
+            label="Video Channels"
+        />
+        <div className="space-y-[2px]">
+            {videoChannels.map((channel) => {
+                return (
+                    <ServerChannel
+                        key={channel.id}
+                        channel={channel}
+                        role={role}
+                        server={server}
+                    />
+                );
+            })}
+        </div>
+    </div>
+)}
+{!!members?.length && (
+    <div className="mb-2">
+        <ServerSection
+            sectionType="members"
+            role={role}
+            label="Members"
+            server={server}
+        />
+        <div className="space-y-[2px]">
+            {members.map((member) => {
+                return <ServerMember
+                    key={member.id}
+                    member={member}
+                    server={server}
+                />;
+            })}
+        </div>
+    </div>
+)}
+```
+20. The updated code for server-member.tsx file.
+```
+"use client"
+
+import { cn } from "@/lib/utils";
+import { Member, MemberRole, Profile, Server } from "@prisma/client"
+import { ShieldAlert, ShieldCheck } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { UserAvatar } from "@/components/user-avatar";
+
+interface ServerMemberProps {
+    member: Member & {
+        profile: Profile
+    };
+    server: Server
+}
+
+const roleIconMap = {
+    [MemberRole.GUEST] : null,
+    [MemberRole.MODERATOR] : <ShieldCheck className="h-4 w-4 ml-2 text-indigo-500" />,
+    [MemberRole.ADMIN] : <ShieldAlert className="h-4 w-4 ml-2 text-rose-500" />
+}
+
+
+
+export const ServerMember = ({
+    member,
+    server,
+}: ServerMemberProps) => {
+
+    const params = useParams();
+    const router = useRouter();
+
+    const icon = roleIconMap[member.role];
+
+
+    return (
+        <button 
+            className={cn(
+                "group px-2 py-2 rounded-md flex items-center gap-x-2 w-full hover:bgzinc-700/10 dark:hover:bg-zinc-700/50 transition mb-1",
+                params?.memberId === member.id && "bg-zinc-700/20 dark:bg-zinc-700"
+            )}
+        >
+            <UserAvatar 
+                className="h-8 w-8 md:h-8 md:w-8"
+                src={member?.profile?.imageUrl} 
+            />
+            <p
+                className={cn(
+                    "font-semibold text-sm text-zinc-500 group-hover:text-zinc-600 dark:text-zinc-400 dark:group-hover:text-zinc-300 transition",
+                    params?.channelId === member.id && "text-primary dark:text-zinc-200 dark:group-hover:text-white"
+                )}
+            >{member?.profile?.name}</p>
+            {icon}
+        </button>
+    )
+}
+```
+21. Now if we click on any icon on the channels list then create channel modal shows up with "TEXT" as the default, So now we have to change it related to type of channel we are creating by default, So we have to make changes in the use-modal-store.ts file. 
+22. go to user-modal-store.ts file and add the following code.
+```
+interface ModalData {
+    server?: Server;
+    channelType?: ChannelType;
+}
+```
+23. Go to server-section.tsx file and add this code, basically add channelType in the onClick function.
+```
+{role !== MemberRole.GUEST && sectionType == "channels" && (
+    <ActionTooltip label="Create Channel" side="top" align="center">
+        <button
+            onClick={() => onOpen("createChannel", {channelType})}
+            className="text-zinc-500 hover:text-zinc-600 dark:text-xinc-400 dark:hover:text-zinc-300 transition"
+        >
+            <Plus className="h-4 w-4" />
+        </button>
+    </ActionTooltip>
+)}
+```
+24. Go to create-channel-modal file and make these changes.
+```
+const { isOpen, onClose, type, data } = useModal();
+const { channelType } = data
+const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+        name: "",
+        type:channelType || ChannelType.TEXT
+    },
+});
+useEffect(() => {
+    if (channelType) {
+        form.setValue("type", channelType)
+    } else {
+        form.setValue("type", ChannelType.TEXT)
+    }
+}, [channelType, form])
+```
+
+
 
 
