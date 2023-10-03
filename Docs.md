@@ -4399,6 +4399,47 @@ export async function PATCH(
 }
 ```
 ## Channel Id Page.
-1. 
+1. Lets add the Channel Id page.
+2. Go to server-channel.tsx file and add the onClick function.
+```
+const onClick = () => {
+    router.push(`/servers/${params?.serverId}/channels/${channel.id}`)
+}
+<button
+    onClick={() => onClick()}
+    className={cn(
+        "group px-2 py-2 rounded-md flex items-center gap-x-2 w-full hover:bg-zinc-700/10 dark:hover:bg-zinc-700/50 transition mb-1",
+        params?.channelId === channel.id &&
+            "bg-zinc-700/20 dark:bg-zinc-700"
+    )}
+>
+```
+3. After implimenting this we will be getting a event bubbling error on the onClick, So to counter this error we have to create Action function which will stop the eventPropagation.
+```
+const onAction = (e: React.MouseEvent, action: ModalType) => {
+    e.stopPropagation();
+    onOpen(action, {channel, server})
+}
+<Edit 
+    onClick={(e) => onAction(e, "editChannel")}
+    className="hidden group-hover:block w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-300 transition" 
+/>
+<Trash 
+    onClick={(e) => onAction(e, "deleteChannel")}
+    className="hidden group-hover:block w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-300 transition"
+/>
+```
+4. There is also a mistake in the code in server-member.tsx file and that is we are wrong comparing the chennalId to member.id, So lets change it.
+```
+<p
+    className={cn(
+        "font-semibold text-sm text-zinc-500 group-hover:text-zinc-600 dark:text-zinc-400 dark:group-hover:text-zinc-300 transition",
+        params?.memberId === member.id && "text-primary dark:text-zinc-200 dark:group-hover:text-white"
+    )}
+>
+    {member?.profile?.name}
+</p>
+```
+5. 
 
 
