@@ -5626,5 +5626,332 @@ const onSubmit = async (values: z.infer<typeof formSchema>) => {
 }
 ```
 ## Chat Messages Component.
-1. 
+1. Remove the future messages div in channelId page. and add <ChatMessages /> component.
+2. Create a new component named chat-messages.tsx file in components/chat/ folder.
+3. In Channelid page pass these props to the chat-messages component.
+```
+<ChatMessages
+    member={member}
+    name={channel.name}
+    chatId={channel.id}
+    type="channel"
+    apiUrl="/api/messages" // getting the messages
+    socketUrl="/api/socket/messages" // triggering new messages
+    socketQuery={{
+        channelId: channel.id,
+        serverId: channel.serverId
+    }}
+    paramKey="channelId"
+    paramValue={channel.id}
+/>
+```
+4. Below mentioned is the code for chat-messages.tsx file.
+```
+"use client"
+
+import { Member } from "@prisma/client";
+import { ChatWelcome } from "./chat-welcome";
+
+interface ChatMessagesProps {
+    name: string;
+    member: Member;
+    chatId: string;
+    apiUrl: string;
+    socketUrl: string;
+    socketQuery: Record<string, string>;
+    paramKey: "channelId" | "conversationId";
+    paramValue: string;
+    type: "channel" | "conversation";
+}
+
+
+export const ChatMessages = ({
+    name,
+    member,
+    chatId,
+    apiUrl,
+    socketUrl,
+    socketQuery,
+    paramKey,
+    paramValue,
+    type
+} : ChatMessagesProps) => {
+    return (
+        <div className="flex-1 flex flex-col py-4 overflow-y-auto"> 
+            <div className="flex-1" />
+            <ChatWelcome
+                type={type}
+                name={name}
+            />
+        </div>
+    )
+}
+```
+5. create a chat-welcome.tsx file in components/chat/ folder and below is the code for it.
+```
+import { Hash } from "lucide-react";
+
+interface ChatWelcomeProps {
+    name: string;
+    type: "channel" | "conversation";
+}
+
+
+
+export const ChatWelcome = ({name, type} : ChatWelcomeProps) => {
+    return (
+        <div className="space-y-2 px-4 mb-4">
+            {type === "channel" && (
+                <div className="h-[75px] w-[75px] rounded-full bg-zinc-500 dark:bg-zinc-700 flex items-center justify-center">
+                    <Hash className="h-12 w-12 text-white" />
+                </div>
+            )}
+            <p className="text-xl md:text-3xl font-bold">
+                {type === "channel" ? "Welcome to #" : ""}{name}
+            </p>
+            <p className="text-zinc-600 dark:text-zinc-400 text-sm">
+                {type === "channel" ? `This is the start of the #${name} channel.` : `This is the datart of your conversation with ${name}`}
+            </p>
+        </div>       
+    )
+}
+```
+6. Now we have to fetch the chat in the component so we have to use REACT QUERY for it.
+7. npm install @tanstack/react-query
+8. run the server again.
+9. create a provider for query named query-provider.tsx file in components/query-provider.tsx and below is the mentioned code for it.
+```
+"use client"
+import {
+    QueryClient,
+    QueryClientProvider
+} from "@tanstack/react-query";
+import { useState } from "react";
+
+export const QueryProvider = ({
+    children
+} : {children: React.ReactNode}) => {
+
+    const [queryClient] = useState(() => new QueryClient());
+
+
+    return (
+        <QueryClientProvider client={queryClient}>
+            {children}
+        </QueryClientProvider>
+    )
+}
+```
+10. Wrap the chilren in app/layout.tsx file like this
+```
+<QueryProvider>
+    {children}
+</QueryProvider>
+```
+11. create a new hook for chat messages, create a new file names use-chat-query.ts. in hooks folder. The code is given below
+```
+import qs from "query-string";
+import { useParams } from "next/navigation";
+import { useInfiniteQuery } from "@tanstack/react-query";
+
+import { useSocket } from "@/components/providers/socket-provider";
+
+interface ChatQueryProps {
+    queryKey: string;
+    apiUrl: string;
+    paramKey: "channelId" | "conversationId";
+    paramValue: string;
+}
+
+export const useChatQuery = ({
+    queryKey,
+    apiUrl,
+    paramKey,
+    paramValue
+}: ChatQueryProps) => {
+    const {isConnected} = useSocket();
+    const params = useParams();
+
+    const fetchMessages = async ({pageParam = undefined}) => {
+        const url = qs.stringifyUrl({
+            url: apiUrl,
+            query: {
+                cursor: pageParam,
+                [paramKey] : paramValue
+            }
+        }, {skipNull: true})
+        
+        const res = await fetch(url)
+        return res.json();
+    }
+
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+        status,
+    } = useInfiniteQuery({
+        queryKey: [queryKey],
+        queryFn: fetchMessages,
+        getNextPageParam: (lastPage) => lastPage?.nextCursor,
+        refetchInterval: isConnected ? false : 1000
+    });
+
+    return {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+        status
+    };
+}
+```
+12. Now its time to use this hook in the chat-messages.tsx file.
+```
+export const ChatMessages = ({
+    name,
+    member,
+    chatId,
+    apiUrl,
+    socketUrl,
+    socketQuery,
+    paramKey,
+    paramValue,
+    type
+} : ChatMessagesProps) => {
+
+    const queryKey = `chat:${chatId}`;
+
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+        status
+    } = useChatQuery({
+        queryKey,
+        apiUrl,
+        paramKey,
+        paramValue
+    });
+
+    if (status === "loading") {
+        return (
+            <div className="flex flex-col flex-1 justify-center items-center">
+                <Loader2 className="h-7 w-7 text-zinc-500 animate-spin my-4" />
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Loading messages...</p>
+            </div>
+        )
+    }
+
+    if (status === "error") {
+		return (
+			<div className="flex flex-col flex-1 justify-center items-center">
+				<ServerCrash className="h-7 w-7 text-zinc-500 my-4" />
+				<p className="text-xs text-zinc-500 dark:text-zinc-400">
+					Something went wrong!
+				</p>
+			</div>
+		);
+	}
+
+    return (
+        <div className="flex-1 flex flex-col py-4 overflow-y-auto"> 
+            <div className="flex-1" />
+            <ChatWelcome
+                type={type}
+                name={name}
+            />
+        </div>
+    )
+}
+```
+13. Now we have to create route to fetch the messges, so create a folder in app/api/messages/route.ts file.
+14. The code mentioned below is the code for the above file.
+```
+import { currentProfile } from "@/lib/current-profile"
+import { db } from "@/lib/db";
+import { Message } from "@prisma/client";
+import { NextResponse } from "next/server"
+
+const MESSAGES_BATCH = 10;
+
+export async function GET(
+    req: Request
+) {
+    try {
+        const profile = await currentProfile();
+
+        const {searchParams} = new URL(req.url)
+        const cursor = searchParams.get("cursor") // cursor is used to target from which message it need to fetch new messages.
+        const channelId = searchParams.get("channelId")
+
+        if (!profile) {
+            return new NextResponse("Unauthorized", {status: 401})
+        }
+
+        if (!channelId) {
+			return new NextResponse("Channel ID missing", { status: 400 });
+		}
+
+        let messages: Message[] = []
+
+        if (cursor) {
+            messages = await db.message.findMany({
+                take: MESSAGES_BATCH,
+                skip: 1,
+                cursor: {
+                    id: cursor,
+                },
+                where: {
+                    channelId,
+                },
+                include: {
+                    member: {
+                        include: {
+                            profile: true,
+                        }
+                    }
+                },
+                orderBy: {
+                    createdAt: "desc",
+                }
+            })
+        } else {
+            messages = await db.message.findMany({
+                take: MESSAGES_BATCH,
+                where: {
+                    channelId
+                },
+                include: {
+                    member: {
+                        include: {
+                            profile: true
+                        }
+                    }
+                },
+                orderBy: {
+                    createdAt: "desc"
+                }
+            })
+        }
+
+        let nextCursor = null
+
+        if (messages.length === MESSAGES_BATCH) {
+            nextCursor = messages[MESSAGES_BATCH - 1].id;
+        }
+
+        return NextResponse.json({
+            items: messages,
+            nextCursor
+        })
+
+    } catch (error) {
+        console.log("[MESSAGES_GET]", error)
+        return new NextResponse("Internal Error", {status: 500})
+    }
+}
+```
 
