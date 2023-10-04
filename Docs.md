@@ -5544,5 +5544,87 @@ if (value && fileType === "pdf") {
 		);
     }
 ```
+## Emoji bar
+1. So now we have to add popover from shad cn ui.
+2. npx shadcn-ui@latest add popover
+3. Now we have to install emoji package.
+4. npm install emoji-mart @emoji-mart/data @emoji-mart/react
+5. replavce <Smile /> with <EmojiPicker/> in chat-input.tsx file.
+6. Create a component named emoji-picker.tsx file in components folder.
+7. Given below is the code for emoji-picker.tsx file.
+```
+"use client"
 
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger
+} from "@/components/ui/popover";
+import { Smile } from "lucide-react";
+import Picker from "@emoji-mart/react";
+import data from "@emoji-mart/data";
+import { useTheme } from "next-themes";
+
+interface EmojiPickerProps {
+    onChange: (value: string) => void;
+}
+
+
+
+export const EmojiPicker = ({onChange} : EmojiPickerProps) => {
+
+    const {resolvedTheme} = useTheme();
+
+
+    return (
+        <Popover>
+            <PopoverTrigger>
+                <Smile 
+                    className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
+                />
+            </PopoverTrigger>
+            <PopoverContent 
+                side="right" 
+                sideOffset={40}
+                className="bg-transparent border-none shadow-none drop-shadow-none mb-16"
+            >
+                <Picker 
+                    theme={resolvedTheme}
+                    data={data}
+                    onEmojiSelect={(emoji:any) => onChange(emoji.native)}
+                />
+            </PopoverContent>
+        </Popover>
+    )
+}
+```
+8. Add onchange function to EmojiPicker component in chat-input.tsx file and also form reset functionality.
+```
+const router = useRouter()
+ <div className="absolute top-7 right-8">
+    <EmojiPicker
+        onChange={(emoji:string) => field.onChange(`${field.value} ${emoji}`)}
+    />
+</div>
+```
+9. In the onSubmit function.
+```
+const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+        const url = qs.stringifyUrl({
+            url: apiUrl,
+            query,
+        })
+
+        await axios.post(url, values);
+
+        form.reset();
+        router.refresh();
+    } catch (error) {
+        console.log(error)
+    }
+}
+```
+## Chat Messages Component.
+1. 
 
