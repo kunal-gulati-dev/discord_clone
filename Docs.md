@@ -5368,4 +5368,181 @@ export default async function handler(
 }
 ```
 ## Message Attahcment.
-1. 
+1. Now we have to create a popup which will open for file upload during the chat.
+2. add new type and interface in use-modal-store.ts file.
+```
+export type ModalType = "createServer" | "invite" | "editServer" | "members" | "createChannel" | "leaveServer" | "deleteServer" | "deleteChannel" | "editChannel" | "messageFile";
+
+interface ModalData {
+    server?: Server;
+    channel?: Channel;
+    channelType?: ChannelType;
+    apiUrl?: string;
+    query?: Record<string, any>;
+}
+```
+3. create a modal component in components/modal/message-file-modal.tsx and below mentioned code is the code for it.
+```
+"use client";
+import * as z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import axios from "axios";
+import qs from "query-string";
+
+import {
+	Dialog,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogContent,
+} from "@/components/ui/dialog";
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+import { FileUpload } from "@/components/file-upload";
+import { useRouter } from "next/navigation";
+import { useModal } from "@/hooks/use-modal-store";
+
+const formSchema = z.object({
+	fileUrl: z.string().min(1, {
+		message: "attachment is required.",
+	}),
+});
+
+export const MessageFileModal = () => {
+
+    const {isOpen, onClose, type, data} = useModal();
+
+	const router = useRouter();
+
+    const isModalOpen = isOpen && type === "messageFile";
+
+    const {apiUrl, query} = data;
+
+	const form = useForm({
+		resolver: zodResolver(formSchema),
+		defaultValues: {
+			fileUrl: "",
+		},
+	});
+
+    const handleClose = () => {
+        form.reset();
+        onClose();
+    }
+
+	const isLoading = form.formState.isSubmitting;
+
+	const onSubmit = async (values: z.infer<typeof formSchema>) => {
+		try {
+            const url = qs.stringifyUrl({
+                url: apiUrl || "",
+                query,
+            });
+
+			await axios.post(url, {...values, content: values.fileUrl});
+
+			form.reset();
+			router.refresh();
+            handleClose();
+		} catch (error) {
+			console.log(error);
+		}
+	};
+
+	return (
+		<Dialog open={isModalOpen} onOpenChange={handleClose}>
+			<DialogContent className="bg-white text-black p-0 overflow-hidden">
+				<DialogHeader className="pt-8 px-6">
+					<DialogTitle className="text-2xl text-center font-bold">
+						Add an attachment
+					</DialogTitle>
+					<DialogDescription className="text-center text-zinc-500">
+						Send a file as a message.
+					</DialogDescription>
+				</DialogHeader>
+				<Form {...form}>
+					<form
+						onSubmit={form.handleSubmit(onSubmit)}
+						className="space-y-8"
+					>
+						<div className="space-y-8 px-6">
+							<div className="flex items-center justify-center text-center">
+								<FormField
+									control={form.control}
+									name="fileUrl"
+									render={({ field }) => (
+										<FormItem>
+											<FormControl>
+												<FileUpload
+													endpoint="messageFile"
+													value={field.value}
+													onChange={field.onChange}
+												/>
+											</FormControl>
+										</FormItem>
+									)}
+								/>
+							</div>
+						</div>
+						<DialogFooter className="bg-gray-100 px-6 py-4">
+							<Button variant="primary" disabled={isLoading}>
+								Send
+							</Button>
+						</DialogFooter>
+					</form>
+				</Form>
+			</DialogContent>
+		</Dialog>
+	);
+};
+
+```
+4. Add this modal component in modal-provider.tsx file.
+5. do some modifications to chat-input.tsx file for this file upload to work, the code is given below.
+```
+import { useModal } from "@/hooks/use-modal-store";
+const {onOpen} = useModal();
+<button 
+    onClick={() => onOpen("messageFile", { apiUrl, query })}
+    type="button"
+    className="absolute top-7 left-8 h-[24px] w-[24px] bg-zinc-500 dark:bg-zinc-400 hover:bg-zinc-600 dark:hover:bg-zinc-300 transition rounded-full p-1 flex items-center justify-center"
+>
+    <Plus className="text-white dark:text-[#313338]" />
+</button>
+```
+6. After all this we can check the image is uploading but after the upload in the modal we can not see the file output so for that we need to make changes in file-upload.tsx file. Add the conditional.
+```
+if (value && fileType === "pdf") {
+        return (
+			<div className=" relative flex items-center p-2 mt-2 rounded-md bg-background/10">
+				<FileIcon className="h-10 w-10 fill-indigo-200 stroke-indigo-400" />
+				<a
+					href={value}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="ml-2 text-sm text-indigo-500 dark:text-indigo-400 hover:underline"
+				>
+					{value}
+				</a>
+				<button
+					onClick={() => onChange("")}
+					className="bg-rose-500 text-white p-1 rounded-full absolute -top-0 -right-0 shadow-sm"
+					type="button"
+				>
+					<X className="h-4 w-4" />
+				</button>
+			</div>
+		);
+    }
+```
+
+
