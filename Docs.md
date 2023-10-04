@@ -4939,4 +4939,166 @@ import { UserAvatar } from "@/components/user-avatar";
 8. So now we have created the functionality of the getting and creating a new conversation in person, So Now we have to impliment the Socket.io setup.
 
 ## Socket IO Setup
+1. So to Start the Socket setup we have to install a couple of packages.
+2. npm install socket.io => for serverk
+3. npm install socket.io-client => for client
+4. Create pages folder in the root directory, Since sockets are not compatible right now with the app directory structure we have to use pages directory
+5. pages/api/socket/io.ts create this file.
+6. Go to types.ts file and we have to create a new custome Next response So that we can use it in the pages directory.
+```
+ mport {Server as NetServer, Socket} from "net";
+import { NextApiResponse } from "next";
+import { Server as SocketIOServer } from "socket.io";
+export type NextApiResponseServerIo = NextApiResponse & {
+    socket: Socket & {
+        server: NetServer & {
+            io: SocketIOServer;
+        }
+    }
+}
+```
+7. Below is the code for io.ts file in which we have created our route to connect to the socket.
+```
+import { Server as NetServer } from "http";
+import { NextApiRequest } from "next";
+import {Server as ServerIO} from "socket.io";
+
+import { NextApiResponseServerIo } from "@/types";
+
+export const config = {
+    api: {
+        bodyParser: false,
+    }
+}
+
+const ioHandler = (req: NextApiRequest, res: NextApiResponseServerIo) => {
+    if (!res.socket.server.io) {
+        const path = "/api/socket/io"
+        const httpServer: NetServer = res.socket.server as  any;
+
+        const io = new ServerIO(httpServer, {
+            path: path,
+            // @ts-ignore
+            addTrailingSlash: false,
+        })
+        res.socket.server.io = io;
+    }
+    res.end();
+}
+
+export default ioHandler;
+```
+8. Now we have to pass the socket to whole application, So we have to use Context api provided in the react.
+9. create a file in components/providers/socket-provider.tsx and the code is mentioned below.
+```
+"use client"
+
+import {
+    createContext,
+    useContext,
+    useEffect,
+    useState
+} from "react";
+import { io as ClientIO } from "socket.io-client";
+
+type SocketContextType = {
+    socket: any | null;
+    isConnected: boolean;
+};
+
+
+const SocketContext = createContext<SocketContextType>({
+    socket: null,
+    isConnected: false,
+});
+
+
+export const useSocket = () => {
+    return useContext(SocketContext)
+}
+
+export const  SocketProvider = ({children} : {children: React.ReactNode}) => {
+    const [socket, setSocket] = useState(null);
+    const [isConnected, setIsConnected] = useState(false);
+
+    useEffect(() => {
+        const socketInstance = new (ClientIO as any)(process.env.NEXT_PUBLIC_SITE_URL!, {
+            path: "/api/socket/io",
+            addTrailingSlash: false,
+        })
+
+        socketInstance.on("connect", () => {
+            setIsConnected(true)
+        })
+        socketInstance.on("disconnect", () => {
+            setIsConnected(false)
+        })
+
+        setSocket(socketInstance)
+
+        return () => {
+            socketInstance.disconnect();
+        }
+
+    }, [])
+
+    return (
+        <SocketContext.Provider value={{socket, isConnected}}>
+            {children}
+        </SocketContext.Provider>
+    )
+
+}
+
+```
+10. Open app layout.tsx file and Wrap modalprovider and children inside SocketProvider.
+```
+<SocketProvider>
+    <ModalProvider />
+    {children}
+</SocketProvider>
+```
+11. Now we have to create a socket indicator on the chat header on the right corner which is going to indicate whether the socket is connected or not.
+12. To do that we have to add a new component from shad cn ui.
+13. npx shadcn-ui@latest add badge
+14. create a new file in components named socket-indicator.tsx and write the code mentioned below.
+```
+"use client"
+
+import { useSocket } from "@/components/providers/socket-provider"
+import { Badge } from "@/components/ui/badge";
+
+export const SocketIndicator = () => {
+    const { isConnected } = useSocket();
+
+    if (!isConnected) {
+		return (
+			<Badge
+				variant="outline"
+				className="bg-yellow-600 text-white border-none"
+			>
+				Fallback: Polling every 1s
+			</Badge>
+		);
+	}
+
+    return (
+		<Badge
+			variant="outline"
+			className="bg-emerald-600 text-white border-none"
+		>
+			Live: Real-Time Updates
+		</Badge>
+	);
+}
+```
+15. add this component after the p tag inside chat-header.tsx file.
+```
+<div className="ml-auto flex items-center">
+    <SocketIndicator />
+</div>
+```
+16. Now run the app and we will see the changes.
+
+## Chat input Component.
 1. 
