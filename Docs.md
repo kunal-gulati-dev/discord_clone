@@ -4784,4 +4784,159 @@ model DirectMessage {
 8. And Start the application again.
 
 ## Conversation Setup.
+1. So we have to create a util for finding our 1 on 1 conversations or creating our 1 on 1 conversation.
+2. create a file named conversations.ts and create 3 functions findConversation, createConversation, findOrCreateConversation.
+3. below code is mentioned.
+```
+import { db } from "@/lib/db";
+
+
+export const getOrCreateConversation = async (memberOneId: string, memberTwoId: string) => {
+    let conversation = await findConversation(memberOneId, memberTwoId) || await findConversation(memberTwoId, memberOneId)
+
+    if (!conversation) {
+        conversation = await createNewConversation(memberOneId, memberTwoId)
+    }
+
+    return conversation;
+
+
+}
+
+const findConversation = async (memberOneId: string, memberTwoId: string) => {
+    try {
+        return await db.conversation.findFirst({
+			where: {
+				AND: [
+					{ memberOneId: memberOneId },
+					{ memberTwoId: memberTwoId },
+				],
+			},
+			include: {
+				memberOne: {
+					include: {
+						profile: true,
+					},
+				},
+				memberTwo: {
+					include: {
+						profile: true,
+					},
+				},
+			},
+		});
+    } catch {
+        return null;
+    }
+    
+}
+
+const createNewConversation = async (memberOneId: string, memberTwoId: string) => {
+    try {
+        return await db.conversation.create({
+            data: {
+                memberOneId,
+                memberTwoId
+            },
+            include: {
+                memberOne: {
+                    include: {
+                        profile: true,
+                    }
+                },
+                memberTwo: {
+                    include: {
+                        profile: true,
+                    }
+                }
+            }
+        })
+    } catch {
+        return null;
+    }
+}
+```
+4. Now go to memberId page and write the following code.
+```
+import { ChatHeader } from "@/components/chat/chat-header";
+import { getOrCreateConversation } from "@/lib/conversation";
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { redirectToSignIn } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
+
+interface MemberaIdPageProps {
+    params: {
+        memberId: string;
+        serverId: string;
+    }
+}
+
+
+
+const MemberIdPage = async ({
+    params
+}: MemberaIdPageProps) => {
+
+    const profile = await currentProfile();
+
+    if (!profile) {
+        return redirectToSignIn();
+    }
+
+    const currentMember = await db.member.findFirst({
+        where: {
+            serverId: params.serverId,
+            profileId: profile.id
+        },
+        include: {
+            profile: true,
+        }
+    })
+
+    if (!currentMember) {
+        return redirect("/")
+    }
+
+    const conversation = await getOrCreateConversation(currentMember.id, params.memberId)
+
+    if (!conversation) {
+        return redirect(`/servers/${params.serverId}`);
+    }
+
+    const { memberOne, memberTwo } = conversation;
+
+    const otherMember = memberOne.profileId === profile.id ? memberTwo : memberOne;
+
+    
+
+    return (
+        <div className="bg-white dark:bg-[#313338] flex flex-col h-full">
+            <ChatHeader 
+                imageUrl={otherMember.profile?.imageUrl}
+                name={otherMember.profile.name}
+                serverId={params.serverId}
+                type="conversation"
+            />
+        </div>
+    );
+}
+ 
+export default MemberIdPage;
+```
+5. After this if we select the member we can see the member name on the top and a new conversation in created in the Database successfully.
+6. But we can not see the image of the user, So we have to fix that now.
+7. We have to add and new type conditional block for conversation in the chat-header.tsx file.
+```
+import { UserAvatar } from "@/components/user-avatar";
+{type === "conversation" && (
+    <UserAvatar
+        src={imageUrl}
+        className="h-8 w-8 md:h-8 md:w-8 mr-2"
+    />
+)}
+```
+8. So now we have created the functionality of the getting and creating a new conversation in person, So Now we have to impliment the Socket.io setup.
+
+## Socket IO Setup
 1. 
