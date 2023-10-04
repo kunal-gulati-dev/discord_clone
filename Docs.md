@@ -4514,6 +4514,154 @@ const ServerIdPage = async ({ params }: ServerIdPageProps) => {
 export default ServerIdPage;
 ```
 13. So now if I click on any server I will immedialtely redirected to the general channel page.
-14. 
 
 
+## Chat Header.
+1. go to (main)/(routes)/servers/[serverId]/channels/[channelId]/page.tsx.
+2. Find the channel and member of the current channel and below mentioned is the intial setup for the page.
+```
+import { currentProfile } from "@/lib/current-profile";
+import { redirectToSignIn } from "@clerk/nextjs";
+import { db } from "@/lib/db";
+import { redirect } from "next/navigation";
+
+interface ChannelIdPageProps {
+    params: {
+        serverId: string;
+        channelId: string;
+    }
+}
+
+
+const ChannelIdPage = async ({
+    params
+}: ChannelIdPageProps) => {
+
+    const profile = await currentProfile();
+
+    if (!profile) {
+        return redirectToSignIn();
+    }
+
+    const channel = await db.channel.findUnique({
+        where: {
+            id: params.channelId,
+        }
+    })
+
+    const member = await db.member.findFirst({
+        where: {
+            serverId: params.serverId,
+            profileId: profile.id,
+        }
+    });
+
+    if (!channel || !member) {
+        redirect("/");
+    }
+
+
+    return (
+        <div className="bg-white dark:bg-[#313338] flex flex-col h-full">
+            <ChatHeader />
+        </div>
+    );
+}
+ 
+export default ChannelIdPage;
+```
+3. Create a chatheader component and add it to channelId page.
+4. Create a folder in the components folder named chat, It wil contain all the components related to chat, create chat-header.tsx file, It is a component.
+5. Pass the props in the chat header component.
+```
+<ChatHeader
+    name={channel.name}
+    serverId={channel.serverId}
+    type="channel"
+/>
+```
+6. Below mentioned code is the initial code for chat-header.tsx file. In this code we have Menu after this code we will activate the mobile view functionality which will collapse the left side bar.
+```
+import { Hash, Menu } from "lucide-react";
+
+
+interface ChatHeaderProps {
+    serverId: string;
+    name: string;
+    type: "channel" | "conversation";
+    imageUrl?: string;
+}
+
+export const ChatHeader = ({
+    serverId,
+    name,
+    type,
+    imageUrl
+}: ChatHeaderProps) => {
+
+
+
+    return (
+        <div className="text-md font-semibold px-3 flex items-center h-12 border-neutral-200 dark:border-neutral-800 border-b-2">
+            <Menu />
+            {type === "channel" && (
+                <Hash className="w-5 h-5 text-zinc-500 dark:text-zinc-400 mr-2" />
+            )}
+            <p className="font-semibold text-md text-black dark:text-white">
+                {name}
+            </p>
+        </div>
+    )
+}
+```
+7. So to do that we have to add another component from shadcn ui.
+8. npx shadcn-ui@latest add sheet
+9. create a new file in the components folder named mobile-toggle.tsx.
+10. Code for the mobile toggle.
+```
+import { Menu } from "lucide-react"
+
+import {
+    Sheet,
+    SheetContent,
+    SheetTrigger,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { NavigationSidebar } from "@/components/navigation/navigation-sidebar";
+import { ServerSidebar } from "@/components/server/server-sidebar";
+
+export const MobileToggle = ({
+    serverId
+}: {
+    serverId: string;
+}) => {
+
+    return (
+        <Sheet>
+            <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden">
+                    <Menu />
+                </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 flex gap-0">
+                <div className="w-[72px]">
+                    <NavigationSidebar />
+                </div>
+                <ServerSidebar
+                    serverId={serverId}
+                />
+            </SheetContent>
+        </Sheet>
+    )
+}
+```
+11. Pass the serverId prop in component in the chat-header file.
+```
+<MobileToggle
+    serverId={serverId}
+/>
+```
+12. Now we have to work on the modification like when we click on members istead of showing channel info at the top we ge to see the member name.
+
+## Prisma Schema Completion.
+1. 
