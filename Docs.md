@@ -5099,6 +5099,26 @@ export const SocketIndicator = () => {
 </div>
 ```
 16. Now run the app and we will see the changes.
+17. After implimenting this we will encounter an error related toe utf-8-validate and commonjs utf-8-validate, So to fix this issue we need to add below mentioned code in the next-config.js file.
+```
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+    webpack: (config) => {
+        config.externals.push({
+            "utf-8-validate": "commonjs utf-8-validate",
+            bufferutil: "commonjs bufferutil"
+        });
+        return config
+    },
+    images: {
+        domains: [
+            "uploadthing.com",
+            "utfs.io"
+        ]
+    }
+}
 
+module.exports = nextConfig
+```
 ## Chat input Component.
 1. 
