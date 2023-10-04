@@ -4440,6 +4440,80 @@ const onAction = (e: React.MouseEvent, action: ModalType) => {
     {member?.profile?.name}
 </p>
 ```
-5. 
+5. Add an onClick function on the button tag which will take us to conversation page.
+```
+const onClick = () => {
+    router.push(`/servers/${params?.serverId}/conversations/${member.id}`)
+}
+<button 
+    onClick={() => onClick()}
+    className={cn(
+        "group px-2 py-2 rounded-md flex items-center gap-x-2 w-full hover:bgzinc-700/10 dark:hover:bg-zinc-700/50 transition mb-1",
+        params?.memberId === member.id && "bg-zinc-700/20 dark:bg-zinc-700"
+    )}
+>
+```
+6. Now we have to create a new page for it. 
+7. So create folder and page in (main)/(routes)/servers/[serverId]/channels/[channelId]/page.tsx.
+8. Now If you click on any channel you will see on the right side channeld Id page.
+9. Create this route structure (main)/(routes)/servers/[serverId]/conversations/[memberId]/page.tsx.
+10. Now if you click on any member you will redirect to memberId page.
+11. Now we have to create a functionality if a user click on a server and then it directly goes to #general channel.
+12. Below mentioned code is the code for server Id page (main)/(routes)/servers/[serverId]/page.tsx.
+```
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { redirectToSignIn } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
+
+interface ServerIdPageProps {
+    params: {
+        serverId: string;
+    }
+}
+
+
+
+const ServerIdPage = async ({ params }: ServerIdPageProps) => {
+    const profile = await currentProfile();
+
+    if (!profile) {
+        return redirectToSignIn();
+    }
+
+    const server = await db.server.findUnique({
+        where: {
+            id: params.serverId,
+            members: {
+                some: {
+                    profileId: profile.id,
+                }
+            }
+        },
+        include: {
+            channels: {
+                where: {
+                    name: "general"
+                },
+                orderBy: {
+                    createdAt: "asc"
+                }
+            }
+        }
+    })
+
+    const initialChannel = server?.channels[0];
+
+    if (initialChannel?.name !== "general") {
+        return null;
+    }
+
+	return redirect(`/servers/${params.serverId}/channels/${initialChannel?.id}`)
+};
+ 
+export default ServerIdPage;
+```
+13. So now if I click on any server I will immedialtely redirected to the general channel page.
+14. 
 
 
