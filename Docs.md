@@ -5954,4 +5954,31 @@ export async function GET(
     }
 }
 ```
+15. Now Lets show the chat messages, So go to chat-messages.tsx file and add this code under Chatwelcome.
+```
+type MessageWithMemberWithProfile = Message & {
+    member: Member;
+    profile: Profile;
+}
+ <div className="flex flex-col-reverse mt-auto">
+    {data?.pages?.map((group, i) => {
+        return (
+            <Fragment key={i}>
+                {group.items.map((message: MessageWithMemberWithProfile) => (
+                    <div key={message.id}>
+                        {message.content}
+                    </div>
+                ))}
+            </Fragment>
+        )
+    })}
+</div>
+```
+16. after this you can send the chat but you have to refresh it to see the chat because till now we have not setup socket on the client side.
+17. we are still getting the errors in the terminal but it is not effecting the frontend till now.
+
+## Chat Item Component.
+1. 
+
+
 
