@@ -6725,6 +6725,26 @@ export const DeleteMessageModal = () => {
 
 ## Chat Socket Hook.
 1. Now we are going to use the keys we have created in the routes.
-2. 
+2. Before going to impliment the socket feature we have to make this feature that when we click on any member name we will redirect to member chat of the specific person.
+3. go to chat-item.tsx file and apply router and params functionality.Add these click function person name and image.
+```
+const params = useParams();
+const router = useRouter();
+    
+const onMemberClick = () => {
+    if (member.id === currentMember.id) {
+        return;
+    }
 
+    router.push(`/servers/${params?.serverId}/conversations/${member.id}`)
+}
+
+```
+4. we might be seeing an error related to sockets in the console so to resolve this we have to use react query.
+you can hadcode this to 1000 in the use-chat-query.ts file.
+```
+refetchInterval: isConnected ? false : 1000
+```
+5. We were facing an error in the terminal regarding bind so to remove those error we have to remove addTrailingSlash: false from io.ts and socket-provider.tsx file.
+6. 
 
