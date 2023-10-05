@@ -6627,6 +6627,104 @@ export default async function handler (
 form.reset();
 setIsEditing(false)
 ```
+## Delete Message
+1. To create this functionality we have to create a delete modal for it.
+2. Add "deleteMessage" this in the use-modal-store.ts file.
+3. create a file in components/modals named delete-message-modal.tsx and the code will be mentioned below.
+4. Go to providers and add this component there.
+5. Go to chat-item.tsx file and use these modal there by giving the mentioned code.
+```
+const {onOpen} = useModal();
+<Trash
+    onClick={() => onOpen("deleteMessage", {
+        apiUrl: `${socketUrl}/${id}`,
+        query: socketQuery,
+    })}
+    className="cursor-pointer ml-auto w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
+/>
+```
+6. The complete code for delete-message-modal.tsx file is given below.
+```
+"use client";
 
+import qs from "query-string";
+import { useState } from "react";
+import axios from "axios";
+import {
+	Dialog,
+	DialogHeader,
+	DialogTitle,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+} from "@/components/ui/dialog";
+import { useModal } from "@/hooks/use-modal-store";
+import { Button } from "@/components/ui/button";
+
+export const DeleteMessageModal = () => {
+	const { isOpen, onClose, type, data } = useModal();
+
+	const isModalOpen = isOpen && type === "deleteMessage";
+	const { apiUrl, query } = data;
+	const [isLoading, setIsLoading] = useState(false);
+
+	const onClick = async () => {
+		try {
+			setIsLoading(true);
+			const url = qs.stringifyUrl({
+				url: apiUrl || "",
+				query
+			});
+
+			await axios.delete(url);
+			onClose();
+		} catch (error) {
+			console.log(error);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	return (
+		<Dialog open={isModalOpen} onOpenChange={onClose}>
+			<DialogContent className="bg-white text-black p-0 overflow-hidden">
+				<DialogHeader className="pt-8 px-6">
+					<DialogTitle className="text-2xl text-center font-bold">
+						Delete Message
+					</DialogTitle>
+					<DialogDescription className="text-center text-zinc-500">
+						Are you sure you want to do this? <br />
+						The message will be permanently deleted.
+					</DialogDescription>
+				</DialogHeader>
+				<DialogFooter className="bg-gray-100 px-6 py-4">
+					<div className="flex items-center justify-between w-full">
+						<Button
+							disabled={isLoading}
+							onClick={onClose}
+							variant="ghost"
+						>
+							Cancel
+						</Button>
+						<Button
+							disabled={isLoading}
+							variant="primary"
+							onClick={onClick}
+						>
+							Confirm
+						</Button>
+					</div>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+};
+
+```
+7. Now we have to add a socket hook which will take care of all the events on the chat in real time.
+
+## Chat Socket Hook.
+1. Now we are going to use the keys we have created in the routes.
+2. 
 
 
