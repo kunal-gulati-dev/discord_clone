@@ -7453,4 +7453,293 @@ export default async function handler(
 
 ```
 ## Video and Voice channels.
-1. 
+1. So to work with audio and video functionality we have to use Livekit.io, It is an open source platform, Create account, name the app and voila.
+2. Now we have to setup our environment variables
+```
+LIVEKIT_API_KEY=
+LIVEKIT_API_SECRET=
+NEXT_PUBLIC_LIVEKIT_URL=
+```
+3. After this follow the documentation for nextjs 13.
+4. install the livekit sdk
+```
+npm install livekit-server-sdk livekit-client @livekit/components-react @livekit/components-styles --save
+```
+5. Now we have to create a token endpoint mentioned in the documentation.
+6. create a folder in app/api named livekit and create a file route.ts, paste the code from documentation.
+7. And now we have to modify it to our needs.
+8. You have to make sure the env key names are matching.
+9. Now we have to create a component which will join the livekit with client.
+10. create a component named components/media-room.tsx write the below mentioned code.
+```
+"use client"
+
+import { useEffect, useState } from "react"
+import { LiveKitRoom, VideoConference } from "@livekit/components-react"
+import "@livekit/components-styles";
+import { Channel } from "@prisma/client";
+import { useUser } from "@clerk/nextjs";
+import { Loader2 } from "lucide-react";
+
+interface MediaRoomProps {
+    chatId: string;
+    video: boolean;
+    audio: boolean;
+}
+
+export const MediaRoom = ({
+    chatId,
+    video,
+    audio
+}: MediaRoomProps) => {
+    const { user } = useUser();
+
+    const [token, setToken] = useState("");
+
+    useEffect(() => {
+        if (!user?.firstName || !user?.lastName) return
+
+        const name = `${user.firstName} ${user.lastName}`;
+
+        (async () => {
+            try {
+                const resp = await fetch(`/api/livekit?room=${chatId}&username=${name}`)
+                const data = await resp.json()
+                setToken(data.token)
+            } catch (error) {
+                console.log(error)
+            }
+        })()
+
+
+
+    }, [user?.firstName, user?.lastName, chatId])
+
+
+    if (token === "") {
+        return (
+            <div className="flex flex-col flex-1 justify-center items-center">
+                <Loader2 className="h-7 w-7 text-zinc-500 animate-spin my-4" />
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Loading...</p>
+            </div>
+        )
+    }
+
+    return (
+		<LiveKitRoom
+			data-lk-theme="default"
+			serverUrl={process.env.NEXT_PUBLIC_LIVEKIT_URL}
+            token={token}
+            video={video}
+            audio={audio}
+		>
+			<VideoConference />
+		</LiveKitRoom>
+	);
+
+}
+
+```
+11. Now we have to integrate it into channel Id page.
+12. Make these conditional changes in the channel Id page under chat header tag
+```
+{channel.type === ChannelType.TEXT && (
+    <>
+        <ChatMessages
+            member={member}
+            name={channel.name}
+            chatId={channel.id}
+            type="channel"
+            apiUrl="/api/messages" // getting the messages
+            socketUrl="/api/socket/messages" // triggering new messages
+            socketQuery={{
+                channelId: channel.id,
+                serverId: channel.serverId,
+            }}
+            paramKey="channelId"
+            paramValue={channel.id}
+        />
+        <ChatInput
+            name={channel.name}
+            type="channel"
+            apiUrl="/api/socket/messages"
+            query={{
+                channelId: channel.id,
+                serverId: channel.serverId,
+            }}
+        />
+    </>
+)}
+{channel.type === ChannelType.AUDIO && (
+    <MediaRoom chatId={channel.id} video={false} audio={true} />
+)}
+{channel.type === ChannelType.VIDEO && (
+    <MediaRoom chatId={channel.id} video={true} audio={true} />
+)}
+```
+13. So the audio and video isworking fine. Now we have to add the functionality for 1 on 1.
+14. create a component in components/chat/chat-video-button.tsx and the code is mentioned below.
+```
+"use client"
+
+import qs from "query-string";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+
+import {Video, VideoOff} from "lucide-react";
+import { ActionTooltip } from "@/components/action-tooltip";
+
+
+export const ChatVideoButton = () => {
+    const pathname = usePathname();
+    const router = useRouter();
+    const searchParams = useSearchParams()
+
+    const isVideo = searchParams?.get("video");
+
+    const onClick = () => {
+        const url = qs.stringifyUrl({
+            url: pathname || "",
+            query: {
+                video: isVideo ? undefined : true,
+            }
+        }, {skipNull: true});  
+        router.push(url);
+    }
+
+    const Icon = isVideo ? VideoOff : Video;
+    const tooltipLabel = isVideo ? "End video call": "Start Video Call"
+
+
+
+    return (
+        <ActionTooltip side="bottom" label={tooltipLabel} align="start">
+            <button onClick={onClick} className="hover:opacity-75 transition mr-4">
+                <Icon
+                    className="h-6 w-6 text-zinc-500 dark:text-zinc-400"
+                />
+            </button>
+        </ActionTooltip>
+    )
+}
+```
+15. Now go to chat-header.tsx component.
+16. add the chat-video-button component there.
+```
+<div className="ml-auto flex items-center">
+    {type === "conversation" && (
+        <ChatVideoButton />
+    )}
+    <SocketIndicator />
+</div>
+```
+17. Now if we click on the icon it will append the video in the url. Now lets work on the component which will show the video area.
+18. Now go to [memberId]/page.tsx file and add these changes, basically conditionaly adding video or text input and also adding in the interface.
+19. Updated code for [memberId]/page.tsx file.
+```
+import { ChatHeader } from "@/components/chat/chat-header";
+import { ChatInput } from "@/components/chat/chat-input";
+import { ChatMessages } from "@/components/chat/chat-messages";
+import { MediaRoom } from "@/components/media-room";
+import { getOrCreateConversation } from "@/lib/conversation";
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { redirectToSignIn } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
+
+interface MemberaIdPageProps {
+    params: {
+        memberId: string;
+        serverId: string;
+    },
+    searchParams: {
+        video?: boolean;
+    }
+}
+
+
+
+const MemberIdPage = async ({
+    params,
+    searchParams
+}: MemberaIdPageProps) => {
+
+    const profile = await currentProfile();
+
+    if (!profile) {
+        return redirectToSignIn();
+    }
+
+    const currentMember = await db.member.findFirst({
+        where: {
+            serverId: params.serverId,
+            profileId: profile.id
+        },
+        include: {
+            profile: true,
+        }
+    })
+
+    if (!currentMember) {
+        return redirect("/")
+    }
+
+    const conversation = await getOrCreateConversation(currentMember.id, params.memberId)
+
+    if (!conversation) {
+        return redirect(`/servers/${params.serverId}`);
+    }
+
+    const { memberOne, memberTwo } = conversation;
+
+    const otherMember = memberOne.profileId === profile.id ? memberTwo : memberOne;
+
+    
+
+    return (
+		<div className="bg-white dark:bg-[#313338] flex flex-col h-full">
+			<ChatHeader
+				imageUrl={otherMember.profile?.imageUrl}
+				name={otherMember.profile.name}
+				serverId={params.serverId}
+				type="conversation"
+			/>
+            {searchParams.video && (
+                <MediaRoom 
+                    chatId={conversation.id}
+                    video={true}
+                    audio={true}
+                />
+            )}
+			{!searchParams.video && (
+				<>
+					<ChatMessages
+						member={currentMember}
+						name={otherMember.profile.name}
+						chatId={conversation.id}
+						type="conversation"
+						apiUrl="/api/direct-messages"
+						paramKey="conversationId"
+						paramValue={conversation.id}
+						socketUrl="/api/socket/direct-messages"
+						socketQuery={{
+							conversationId: conversation.id,
+						}}
+					/>
+					<ChatInput
+						name={otherMember.profile.name}
+						type="conversation"
+						apiUrl="/api/socket/direct-messages"
+						query={{
+							conversationId: conversation.id,
+						}}
+					/>
+				</>
+			)}
+		</div>
+	);
+}
+ 
+export default MemberIdPage;
+```
+20. With this we have completed the project Now its time to deploy it on the internet.
