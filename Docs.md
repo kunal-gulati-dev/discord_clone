@@ -7081,4 +7081,376 @@ export const ChatMessages = ({
     )
 }
 ```
-5. 
+## Direct messages.
+1. Now we have to work on 1 on 1 conversations.
+2. go to conversations/[memberId]/page.tsx file and add the chatmessages and chatInput component under chatheader tag.
+```
+<ChatMessages
+    member={currentMember}
+    name={otherMember.profile.name}
+    chatId={conversation.id}
+    type="conversation"
+    apiUrl="/api/direct-messages"
+    paramKey="conversationId"
+    paramValue={conversation.id}
+    socketUrl="/api/socket/direct-messages"
+    socketQuery={{
+        conversationId: conversation.id,
+    }}
+/>
+<ChatInput
+    name={otherMember.profile.name}
+    type="conversation"
+    apiUrl="/api/socket/direct-messages"
+    query={{
+        conversationId: conversation.id
+    }}
+/>
+```
+3. create a global route, create a folder inside app/api/direct-messages/route.ts and the code for it is given below.
+```
+import { currentProfile } from "@/lib/current-profile";
+import { db } from "@/lib/db";
+import { DirectMessage } from "@prisma/client";
+import { NextResponse } from "next/server";
+
+const MESSAGES_BATCH = 10;
+
+export async function GET(req: Request) {
+	try {
+		const profile = await currentProfile();
+
+		const { searchParams } = new URL(req.url);
+		const cursor = searchParams.get("cursor"); // cursor is used to target from which message it need to fetch new messages.
+		const conversationId = searchParams.get("conversationId");
+
+		if (!profile) {
+			return new NextResponse("Unauthorized", { status: 401 });
+		}
+
+		if (!conversationId) {
+			return new NextResponse("Conversation ID missing", { status: 400 });
+		}
+
+		let messages: DirectMessage[] = [];
+
+		if (cursor) {
+			messages = await db.directMessage.findMany({
+				take: MESSAGES_BATCH,
+				skip: 1,
+				cursor: {
+					id: cursor,
+				},
+				where: {
+					conversationId,
+				},
+				include: {
+					member: {
+						include: {
+							profile: true,
+						},
+					},
+				},
+				orderBy: {
+					createdAt: "desc",
+				},
+			});
+		} else {
+			messages = await db.directMessage.findMany({
+				take: MESSAGES_BATCH,
+				where: {
+					conversationId,
+				},
+				include: {
+					member: {
+						include: {
+							profile: true,
+						},
+					},
+				},
+				orderBy: {
+					createdAt: "desc",
+				},
+			});
+		}
+
+		let nextCursor = null;
+
+		if (messages.length === MESSAGES_BATCH) {
+			nextCursor = messages[MESSAGES_BATCH - 1].id;
+		}
+
+		return NextResponse.json({
+			items: messages,
+			nextCursor,
+		});
+	} catch (error) {
+		console.log("[DIRECT_MESSAGES_GET]", error);
+		return new NextResponse("Internal Error", { status: 500 });
+	}
+}
+
+```
+4. Now we have to setup socket url to make these messages work.
+5. create a folder in pages/api/socket/direct-messages/ and craete a file named index.ts and this will be the route for socket thing.
+```
+import { currentProfilePages } from "@/lib/current-profile-page";
+import { NextApiResponseServerIo } from "@/types";
+import { NextApiRequest } from "next";
+import { db } from "@/lib/db";
+
+export default async function handler(
+	req: NextApiRequest,
+	res: NextApiResponseServerIo
+) {
+	if (req.method !== "POST") {
+		return res.status(405).json({ error: "Method Not allowed." });
+	}
+
+	try {
+		const profile = await currentProfilePages(req);
+
+		const { content, fileUrl } = req.body;
+		const { conversationId } = req.query;
+
+		if (!profile) {
+			return res.status(401).json({ error: "Unauthorized" });
+		}
+
+		if (!conversationId) {
+			return res.status(400).json({ error: "Conversation ID missing" });
+		}
+		
+
+		if (!content) {
+			return res.status(400).json({ error: "Content is missing" });
+		}
+
+		
+        const conversation = await db.conversation.findFirst({
+			where: {
+				id: conversationId as string,
+				OR: [
+					{
+						memberOne: {
+							profileId: profile.id,
+						},
+					},
+					{
+						memberTwo: {
+							profileId: profile.id,
+						},
+					},
+				],
+			},
+			include: {
+				memberOne: {
+					include: {
+						profile: true,
+					},
+				},
+				memberTwo: {
+					include: {
+						profile: true,
+					},
+				},
+			},
+		});
+
+        if (!conversation) {
+            return res.status(404).json({message: "Conversation not found"})
+        }
+
+        const member = conversation.memberOne.profileId === profile.id ? conversation.memberOne : conversation.memberTwo
+
+		if (!member) {
+			return res.status(404).json({ message: "Member not found" });
+		}
+
+		const message = await db.directMessage.create({
+			data: {
+				content,
+				fileUrl,
+				conversationId: conversationId as string,
+				memberId: member.id,
+			},
+			include: {
+				member: {
+					include: {
+						profile: true,
+					},
+				},
+			},
+		});
+
+		const channelKey = `chat:${conversationId}:messages`;
+
+		res?.socket?.server?.io?.emit(channelKey, message);
+
+		return res.status(200).json(message);
+	} catch (error) {
+		console.log("[DIRECT_MESSAGES_POST]", error);
+		return res.status(500).json({ message: "Internal Error" });
+	}
+}
+
+```
+6. After this editing and deleting the messages will not work.
+7. So lets work on that now.
+8. We have to kind of routes one for app directory and one for page directory why ? because websockets work in pages directory.
+9. create a file named [directMessageId].ts in the pages/api/socket/direct-messages folder and the code is given below.
+```
+import { currentProfilePages } from "@/lib/current-profile-page";
+import { db } from "@/lib/db";
+import { NextApiResponseServerIo } from "@/types";
+import { MemberRole } from "@prisma/client";
+import { NextApiRequest } from "next";
+
+export default async function handler(
+	req: NextApiRequest,
+	res: NextApiResponseServerIo
+) {
+	if (req.method !== "DELETE" && req.method !== "PATCH") {
+		return res.status(405).json({ error: "Method not allowed." });
+	}
+
+	try {
+		const profile = await currentProfilePages(req);
+
+		const { directMessageId, conversationId } = req.query;
+		const { content } = req.body;
+
+		if (!profile) {
+			return res.status(401).json({ error: "Unauthorized" });
+		}
+
+		if (!conversationId) {
+			return res.status(400).json({ error: "Conversation ID missing" });
+		}
+
+		const conversation = await db.conversation.findFirst({
+            where: {
+                id: conversationId as string,
+                OR: [
+                    {
+                        memberOne: {
+                            profileId: profile.id
+                        }
+                    },
+                    {
+                        memberTwo: {
+                            profileId: profile.id
+                        }
+                    }
+                ]
+            },
+            include: {
+                memberOne: {
+                     include: {
+                        profile: true,
+                     }
+                },
+                memberTwo: {
+                    include: {
+                        profile: true,
+                    }
+                }
+            }
+        })
+
+        if (!conversation) {
+			return res.status(404).json({ error: "Conversation not found." });
+		}
+
+		
+
+		const member = conversation.memberOne.profileId === profile.id ? conversation.memberOne : conversation.memberTwo;
+
+
+
+		if (!member) {
+			return res.status(404).json({ error: "Member not found." });
+		}
+
+		let directMessage = await db.directMessage.findFirst({
+			where: {
+				id: directMessageId as string,
+				conversationId: conversationId as string,
+			},
+			include: {
+				member: {
+					include: {
+						profile: true,
+					},
+				},
+			},
+		});
+
+		if (!directMessage || directMessage.deleted) {
+			return res.status(404).json({ error: "Message not found." });
+		}
+
+		const isMessageOwner = directMessage.memberId === member.id;
+		const isAdmin = member.role === MemberRole.ADMIN;
+		const isModerator = member.role === MemberRole.MODERATOR;
+		const canModify = isMessageOwner || isAdmin || isModerator;
+
+		if (!canModify) {
+			return res.status(401).json({ error: "Unauthorized" });
+		}
+
+		if (req.method === "DELETE") {
+			directMessage = await db.directMessage.update({
+				where: {
+					id: directMessageId as string,
+				},
+				data: {
+					fileUrl: null,
+					content: "This Message has been deleted",
+					deleted: true,
+				},
+				include: {
+					member: {
+						include: {
+							profile: true,
+						},
+					},
+				},
+			});
+		}
+
+		if (req.method === "PATCH") {
+			if (!isMessageOwner) {
+				return res.status(401).json({ error: "Unauthorized." });
+			}
+			directMessage = await db.directMessage.update({
+				where: {
+					id: directMessageId as string,
+				},
+				data: {
+					content: content,
+				},
+				include: {
+					member: {
+						include: {
+							profile: true,
+						},
+					},
+				},
+			});
+		}
+
+		const updateKey = `chat:${conversation.id}:messages:update`;
+
+		res?.socket?.server?.io?.emit(updateKey, directMessage);
+
+		return res.status(200).json(directMessage);
+	} catch (error) {
+		console.log("[MESSAGE_ID]", error);
+		return res.status(500).json({ error: "Internal error" });
+	}
+}
+
+```
+## Video and Voice channels.
+1. 
