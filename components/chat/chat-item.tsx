@@ -34,7 +34,7 @@ interface ChatItemProps {
     content: string;
     member: Member & {
         profile: Profile;
-    }
+    };
     timestamp: string;
     fileUrl: string | null;
     deleted: boolean;

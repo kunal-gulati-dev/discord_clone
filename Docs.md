@@ -7743,3 +7743,8 @@ const MemberIdPage = async ({
 export default MemberIdPage;
 ```
 20. With this we have completed the project Now its time to deploy it on the internet.
+
+
+## Deployment
+1. we can not deploy it on vercel because vercel is serverless.
+2. We are using websockets So we have to use railway
