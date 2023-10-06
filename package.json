@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -53,6 +53,7 @@
     "react-hook-form": "^7.46.2",
     "socket.io": "^4.7.2",
     "socket.io-client": "^4.7.2",
+    "styled-jsx": "^5.1.2",
     "tailwind-merge": "^1.14.0",
     "tailwindcss": "3.3.3",
     "tailwindcss-animate": "^1.0.7",
